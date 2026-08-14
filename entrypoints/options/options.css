@@ -1,0 +1,101 @@
+.options {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 28px 20px 60px;
+}
+
+.options > header {
+  margin-bottom: 20px;
+}
+
+.options section {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background: var(--panel);
+}
+
+.options .actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0;
+  background: var(--bg);
+}
+
+.options code {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+
+.help {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 4px 0 0;
+}
+
+kbd {
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.recent li:first-child {
+  border-top: none;
+}
+
+.recent li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.recent strong {
+  font-size: 12px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent time {
+  white-space: nowrap;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+
+.dot.done {
+  background: var(--ok);
+}
+
+.dot.error {
+  background: var(--err);
+}

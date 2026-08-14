@@ -1,0 +1,43 @@
+body {
+  width: 360px;
+}
+
+.popup {
+  padding: 12px;
+}
+
+.popup header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.popup footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.popup footer .grow {
+  flex: 1;
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.summary {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 12px;
+  line-height: 1.5;
+}

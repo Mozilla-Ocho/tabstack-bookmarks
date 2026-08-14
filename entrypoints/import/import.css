@@ -1,0 +1,49 @@
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms linear;
+}
+
+.counts {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.counts strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.failures {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.failures li {
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.failures li:first-child {
+  border-top: none;
+}
+
+.failures .url {
+  color: var(--muted);
+  font-size: 11px;
+  word-break: break-all;
+}
