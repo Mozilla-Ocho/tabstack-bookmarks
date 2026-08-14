@@ -119,18 +119,22 @@ Vitest with the `WxtVitest` plugin, which provides `#imports` and `fakeBrowser`.
 Unit tests do not catch CSS, manifest or permission problems — the sticky-bar overlap and
 the unified-extensions placement both needed a real window. Use
 `scripts/firefox-drive.mjs` (its header has the `web-ext run` command line, including the
-`-remote-allow-system-access` flag Firefox 142+ requires).
+`-remote-allow-system-access` flag Firefox 142+ requires) and `scripts/chrome-drive.mjs`,
+which handles its own browser and profile.
+
+Test credentials belong in a throwaway profile, never a committed file: both scripts use
+temporary profiles, and `JustSteveKing/tabstack-bookmarks-test` is a private repo kept for
+exercising the GitHub destination.
 
 Notes from doing this the hard way:
 
 - `pnpm dev:firefox` prints "load manually" on this machine and serves pages from the HMR
   server, which muddies what you are verifying. For anything visual, test the production
   build via `web-ext run`.
-- Current Chrome (151 when this was written) silently ignores `--load-extension`. Launch
-  it with `--enable-unsafe-extension-debugging --remote-debugging-port=9333` and load the
-  build over CDP instead: `Extensions.loadUnpacked { path }` returns the extension id, and
-  from there `Target.createTarget` on `chrome-extension://<id>/options.html` behaves like
-  any page — which is how the Chrome save, download and import paths were verified.
+- Chrome gets `scripts/chrome-drive.mjs`, which launches a throwaway profile and installs
+  the build over CDP `Extensions.loadUnpacked` — current Chrome (151 here) silently ignores
+  `--load-extension`. That path verified Chrome's save, `data:`-URL download fallback,
+  summaries and import queue.
 - Extension pages are privileged: BiDi refuses to navigate to them, and only the parent
   process can open one in a tab.
 - Size the window *after* attaching to the tab, or screenshots come out 300px wide.

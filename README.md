@@ -217,7 +217,7 @@ scripts/
   firefox-drive.mjs drives a real Firefox over Marionette
 ```
 
-### Driving a real Firefox
+### Driving a real browser
 
 `scripts/firefox-drive.mjs` opens the extension's own pages in a running Firefox and runs
 code inside them — how the options page, the save pipeline and the import queue were
@@ -232,6 +232,14 @@ node scripts/firefox-drive.mjs import.html --eval="return document.title"
 
 `--eval` runs inside the extension page, so `browser.*` is available and the body may
 await.
+
+For Chrome, `scripts/chrome-drive.mjs` does the whole job itself — it launches a throwaway
+profile, installs the build over CDP (current Chrome ignores `--load-extension`), runs your
+code and tidies up:
+
+```bash
+node scripts/chrome-drive.mjs options.html --shot=/tmp/chrome.png
+```
 
 ### Adding a destination
 

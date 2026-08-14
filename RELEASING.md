@@ -11,9 +11,12 @@ pnpm dlx web-ext lint -s .output/firefox-mv3   # 0 errors; 2 React warnings are 
 ```
 
 Then exercise the real thing, because unit tests do not catch manifest, CSS or permission
-problems. `scripts/firefox-drive.mjs` (see its header) drives a live Firefox; for Chrome,
-launch with `--enable-unsafe-extension-debugging --remote-debugging-port=9333` and load the
-build over CDP `Extensions.loadUnpacked` — `--load-extension` is ignored by current Chrome.
+problems:
+
+```bash
+node scripts/chrome-drive.mjs options.html --shot=/tmp/chrome.png   # throwaway profile
+node scripts/firefox-drive.mjs options.html --shot=/tmp/firefox.png # needs web-ext, see header
+```
 
 At minimum, walk one save per destination you claim to support, and one import.
 
