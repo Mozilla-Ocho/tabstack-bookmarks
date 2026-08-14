@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { browser, defineBackground } from '#imports';
 import { listBookmarkFolders } from '@/src/lib/bookmarks';
 import {
@@ -55,12 +59,10 @@ export default defineBackground(() => {
   // Alt+Shift+S saves the active tab without opening the popup.
   browser.commands?.onCommand.addListener((command) => {
     if (command !== 'save-page') return;
-    void browser.tabs
-      .query({ active: true, currentWindow: true })
-      .then(([tab]) => {
-        if (!isSaveableUrl(tab?.url)) return;
-        return handleSave({ type: 'save', url: tab!.url!, title: tab?.title ?? '' });
-      });
+    void browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+      if (!isSaveableUrl(tab?.url)) return;
+      return handleSave({ type: 'save', url: tab!.url!, title: tab?.title ?? '' });
+    });
   });
 
   // An import outlives the page that started it, and the event page can be
@@ -72,8 +74,7 @@ export default defineBackground(() => {
   void resumeImport();
 
   browser.contextMenus.onClicked.addListener((info, tab) => {
-    const url =
-      info.menuItemId === MENU_LINK ? info.linkUrl : (info.pageUrl ?? tab?.url);
+    const url = info.menuItemId === MENU_LINK ? info.linkUrl : (info.pageUrl ?? tab?.url);
     if (!isSaveableUrl(url)) return;
     // linkText is Firefox-only; fall back to the tab title elsewhere.
     const linkText = (info as { linkText?: string }).linkText;
@@ -207,10 +208,13 @@ async function broadcast(record: SaveRecord): Promise<void> {
 }
 
 async function paintBadge(record: SaveRecord): Promise<void> {
-  const text =
-    record.status === 'done' ? '✓' : record.status === 'error' ? '!' : '…';
+  const text = record.status === 'done' ? '✓' : record.status === 'error' ? '!' : '…';
   const color =
-    record.status === 'done' ? '#16a34a' : record.status === 'error' ? '#dc2626' : '#6b7280';
+    record.status === 'done'
+      ? '#16a34a'
+      : record.status === 'error'
+        ? '#dc2626'
+        : '#6b7280';
   try {
     await browser.action.setBadgeText({ text });
     await browser.action.setBadgeBackgroundColor({ color });

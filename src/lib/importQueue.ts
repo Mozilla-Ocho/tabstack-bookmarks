@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { browser } from '#imports';
 import type { BookmarkItem } from './bookmarks';
 import { collectBookmarks } from './bookmarks';
@@ -190,7 +194,11 @@ export async function processJob(
           ? latest.failures
           : [
               ...latest.failures,
-              { url: item.url, title: item.title, error: record?.error ?? 'Unknown error' },
+              {
+                url: item.url,
+                title: item.title,
+                error: record?.error ?? 'Unknown error',
+              },
             ],
       });
       onProgress?.(job);

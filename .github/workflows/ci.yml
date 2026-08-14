@@ -23,14 +23,19 @@ jobs:
 
       - run: pnpm compile
 
+      - run: pnpm lint
+
+      - run: pnpm format:check
+
       - run: pnpm test
 
       - run: pnpm build:firefox
 
       - run: pnpm build
 
-      # Catches manifest problems that a successful build does not.
-      - run: pnpm dlx web-ext@latest lint --source-dir .output/firefox-mv3 --warnings-as-errors=false
+      # Catches manifest problems that a successful build does not. Pinned as a
+      # devDependency so the pipeline does not change under us.
+      - run: pnpm exec web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors=false
 
       - name: Package
         run: pnpm zip:firefox

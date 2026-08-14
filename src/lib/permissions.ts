@@ -1,13 +1,14 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { browser } from '#imports';
 
 /**
  * Firefox MV3 hands out host permissions only after the user opts in, so the
  * options page has to check and request them before the first save.
  */
-export const REQUIRED_ORIGINS = [
-  'https://api.tabstack.ai/*',
-  'https://api.github.com/*',
-];
+export const REQUIRED_ORIGINS = ['https://api.tabstack.ai/*', 'https://api.github.com/*'];
 
 export async function hasHostPermissions(origins = REQUIRED_ORIGINS): Promise<boolean> {
   try {

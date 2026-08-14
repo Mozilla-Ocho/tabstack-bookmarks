@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import type { ContentScope, Effort } from './settings';
 
 export const TABSTACK_API = 'https://api.tabstack.ai/v1';
@@ -46,11 +50,12 @@ function statusMessage(status: number, body: string): string {
 
 /** Turns a failed response into an Error carrying the API's own message. */
 async function apiError(res: Response): Promise<TabstackError> {
-  let detail = '';
+  let detail: string;
   try {
     const json = (await res.json()) as { error?: string };
     detail = json.error ?? '';
   } catch {
+    // Not JSON — the body text is the next best thing.
     detail = await res.text().catch(() => '');
   }
   return new TabstackError(statusMessage(res.status, detail), res.status);
@@ -103,12 +108,14 @@ const SUMMARY_SCHEMA = {
   properties: {
     summary: {
       type: 'string',
-      description: 'Two or three sentences describing what this page is and why it is worth keeping.',
+      description:
+        'Two or three sentences describing what this page is and why it is worth keeping.',
     },
     key_points: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Three to five short bullets with the concrete specifics worth remembering.',
+      description:
+        'Three to five short bullets with the concrete specifics worth remembering.',
     },
     tags: {
       type: 'array',
@@ -157,7 +164,9 @@ export async function generateSummary(opts: SummaryOptions): Promise<PageSummary
   return {
     summary: typeof json.summary === 'string' ? json.summary.trim() : '',
     key_points: (Array.isArray(json.key_points) ? json.key_points : [])
-      .filter((point): point is string => typeof point === 'string' && point.trim() !== '')
+      .filter(
+        (point): point is string => typeof point === 'string' && point.trim() !== '',
+      )
       .map((point) => point.trim()),
     tags: (Array.isArray(json.tags) ? json.tags : [])
       .filter((tag): tag is string => typeof tag === 'string')

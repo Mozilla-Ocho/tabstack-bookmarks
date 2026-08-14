@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import type { ImportJob, ImportOptions } from './importQueue';
 import type { BackendId } from './settings';
 
@@ -78,6 +82,24 @@ export type Message =
   | PlanImportRequest
   | StartImportRequest
   | ImportControlRequest;
+
+/**
+ * What the background replies with when a handler rejects. Callers must check
+ * for this before treating a reply as their expected shape — otherwise the UI
+ * renders a record with no status and shows an empty box.
+ */
+export interface ErrorReply {
+  error: string;
+}
+
+export function isErrorReply(reply: unknown): reply is ErrorReply {
+  return (
+    typeof reply === 'object' &&
+    reply !== null &&
+    typeof (reply as ErrorReply).error === 'string' &&
+    !('status' in reply)
+  );
+}
 
 /** Broadcast from the background whenever a record changes. */
 export interface SaveUpdate {

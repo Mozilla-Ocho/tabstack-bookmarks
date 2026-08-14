@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { joinPath } from '../markdown';
 import type { ObsidianSettings, Settings } from '../settings';
 import type { SavePayload, SaveResult, StorageBackend } from './types';
@@ -18,7 +22,7 @@ function reachError(error: unknown, cfg: ObsidianSettings): Error {
     `Could not reach Obsidian at ${base(cfg)}. Make sure Obsidian is running with the ` +
       `Local REST API plugin enabled.${
         https
-          ? ' The plugin\'s HTTPS port uses a self-signed certificate that extensions reject — enable its HTTP port (default 27123) instead.'
+          ? " The plugin's HTTPS port uses a self-signed certificate that extensions reject — enable its HTTP port (default 27123) instead."
           : ''
       }` +
       ` (${error instanceof Error ? error.message : String(error)})`,
@@ -26,15 +30,14 @@ function reachError(error: unknown, cfg: ObsidianSettings): Error {
 }
 
 async function statusError(res: Response): Promise<Error> {
-  let detail = '';
-  try {
-    const json = (await res.json()) as { message?: string; errorCode?: number };
-    detail = json.message ?? '';
-  } catch {
-    detail = '';
-  }
+  const detail = await res
+    .json()
+    .then((json) => (json as { message?: string }).message ?? '')
+    .catch(() => '');
   if (res.status === 401) {
-    return new Error('Obsidian rejected the API key (401). Copy it from the plugin settings.');
+    return new Error(
+      'Obsidian rejected the API key (401). Copy it from the plugin settings.',
+    );
   }
   return new Error(`Obsidian write failed (${res.status}). ${detail}`.trim());
 }

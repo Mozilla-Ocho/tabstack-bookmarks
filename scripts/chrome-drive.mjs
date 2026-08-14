@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 /**
  * Launches a throwaway Chrome, loads the built extension, and runs code inside
  * its pages — the Chrome counterpart to `scripts/firefox-drive.mjs`.
@@ -76,7 +80,8 @@ ws.onmessage = (raw) => {
   if (!msg.id || !pending.has(msg.id)) return;
   const { ok, err } = pending.get(msg.id);
   pending.delete(msg.id);
-  msg.error ? err(new Error(JSON.stringify(msg.error))) : ok(msg.result);
+  if (msg.error) err(new Error(JSON.stringify(msg.error)));
+  else ok(msg.result);
 };
 const send = (method, params = {}, sessionId) =>
   new Promise((ok, err) => {

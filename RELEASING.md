@@ -23,7 +23,7 @@ At minimum, walk one save per destination you claim to support, and one import.
 Two paths only a human can check, both on a **fresh profile**:
 
 - **Host permission grant.** Firefox asks for `api.tabstack.ai` access on first use; click
-  *Grant access* in the options page and confirm the doorhanger. Automation cannot supply
+  _Grant access_ in the options page and confirm the doorhanger. Automation cannot supply
   the gesture the prompt requires.
 - **Obsidian certificate.** The plugin's HTTPS port is self-signed, so confirm whichever
   route the docs recommend still works: the plugin's HTTP port, or accepting the

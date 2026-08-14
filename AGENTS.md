@@ -25,13 +25,16 @@ function. Add a fifth caller rather than a second pipeline.
 ```bash
 pnpm install          # runs `wxt prepare` via postinstall
 pnpm compile          # tsc --noEmit
+pnpm lint             # eslint; type-aware, so it needs TypeScript 6.x
+pnpm format           # prettier --write .
 pnpm test             # vitest run
 pnpm build:firefox    # .output/firefox-mv3
 pnpm build            # .output/chrome-mv3
 pnpm dev:firefox      # HMR (see the caveat below)
 ```
 
-Before claiming a change works: `pnpm compile && pnpm test && pnpm build:firefox`. If you
+Before claiming a change works:
+`pnpm compile && pnpm lint && pnpm format:check && pnpm test && pnpm build:firefox`. If you
 touched `wxt.config.ts`, permissions or anything manifest-shaped, also run
 `pnpm dlx web-ext lint -s .output/firefox-mv3` — 0 errors, and only the two React
 `UNSAFE_VAR_ASSIGNMENT` warnings are expected.
@@ -79,6 +82,14 @@ opt-in on Firefox, and the Obsidian base URL is not known at build time. `backen
 derives the pattern, the options page requests it, and `runSave()` refuses to start
 without it — failing early with a sentence beats failing mid-flight with a CORS error.
 
+**Background replies can be errors.** `route()` answers a rejected handler with
+`{ error }`. Every caller must pass replies through `isErrorReply()` before treating them
+as their expected shape — a `SaveRecord` with no `status` renders as an empty box, which is
+worse than an error message.
+
+**Render errors must not blank a page.** Extension pages get no browser error UI, so each
+entrypoint is wrapped in `ErrorBoundary`. Keep new entrypoints wrapped.
+
 ## Settings
 
 `Settings` in `src/lib/settings.ts` is the single schema. Adding a field means: the type,
@@ -88,14 +99,22 @@ a crash to people who installed last week.
 
 Validation belongs in `configErrors()`, which gates the UI and `runSave()` alike.
 
+`SCHEMA_VERSION` exists for _reshaping_ — a renamed or re-typed field — not for additions,
+which the merge already handles. Bump it and put the transformation in `migrate()`; settings
+written by a newer version are passed through rather than discarded.
+
+TypeScript is pinned to 6.x on purpose: `typescript-eslint` refuses to run against TS 7, and
+type-aware linting is worth more than being on the native compiler. Revisit when upstream
+supports it.
+
 ## Storage keys
 
-| Key | Contents |
-| --- | --- |
-| `settings` | The one settings object |
-| `recentSaves` | Last 30 `SaveRecord`s, for the UI only |
+| Key           | Contents                                          |
+| ------------- | ------------------------------------------------- |
+| `settings`    | The one settings object                           |
+| `recentSaves` | Last 30 `SaveRecord`s, for the UI only            |
 | `saved:<url>` | Durable index entry, one key per URL, O(1) writes |
-| `importJob` | The running/most recent import job |
+| `importJob`   | The running/most recent import job                |
 
 The `saved:` prefix is sharded on purpose: a single map would be rewritten on every save.
 Anything iterating all keys must filter by prefix and ignore the rest.
@@ -137,18 +156,20 @@ Notes from doing this the hard way:
   summaries and import queue.
 - Extension pages are privileged: BiDi refuses to navigate to them, and only the parent
   process can open one in a tab.
-- Size the window *after* attaching to the tab, or screenshots come out 300px wide.
+- Size the window _after_ attaching to the tab, or screenshots come out 300px wide.
 - Full-page screenshots render `position: sticky` elements at the viewport edge, so an
   apparent overlap in a screenshot may not be a real one. Check computed styles too.
 
 ## Style
 
 - Match the surrounding code: named exports, `async`/`await`, no default exports outside
-  entrypoints, comments that explain *why* rather than restating the line.
+  entrypoints, comments that explain _why_ rather than restating the line.
 - Brand tokens only, from `src/ui/style.css`. Do not introduce a second palette or a
   remote font/CDN asset. Both schemes come from `light-dark()`; no duplicated dark block.
-- Icons are generated — edit `scripts/make-icons.mjs` and rerun it, never hand-edit the
-  PNGs.
+- Icons and the store promo tile are generated — edit `scripts/make-icons.mjs` and rerun
+  it, never hand-edit the PNGs.
+- Every source file carries the MPL-2.0 header. Prettier will not add it; copy it from a
+  neighbouring file.
 - Never log or print a secret. When debugging keys, log the length. `TABSTACK_API_KEY`
   from the environment is fine for local API probes; it must not reach a committed file,
   a test fixture, or a commit message.

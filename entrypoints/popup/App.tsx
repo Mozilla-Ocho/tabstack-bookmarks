@@ -1,8 +1,17 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import { BACKENDS } from '@/src/lib/backends';
 import { parseTags, renderFilename } from '@/src/lib/markdown';
-import type { SaveRecord, SaveRequest, SaveUpdate } from '@/src/lib/messages';
+import {
+  isErrorReply,
+  type SaveRecord,
+  type SaveRequest,
+  type SaveUpdate,
+} from '@/src/lib/messages';
 import { isSaveableUrl } from '@/src/lib/save';
 import { configErrors, getSettings, type Settings } from '@/src/lib/settings';
 
@@ -29,10 +38,13 @@ export function App() {
       const [active] = await browser.tabs.query({ active: true, currentWindow: true });
       const info = { url: active?.url ?? '', title: active?.title ?? '' };
       const loaded = await getSettings();
-      const previous = (await browser.runtime.sendMessage({
+      const stateReply = await browser.runtime.sendMessage({
         type: 'getState',
         url: info.url,
-      })) as SaveRecord | undefined;
+      });
+      const previous = isErrorReply(stateReply)
+        ? undefined
+        : (stateReply as SaveRecord | undefined);
 
       setTab(info);
       setSettings(loaded);
@@ -83,8 +95,25 @@ export function App() {
       startedAt: Date.now(),
       updatedAt: Date.now(),
     });
-    const result = (await browser.runtime.sendMessage(request)) as SaveRecord | undefined;
-    if (result) setRecord(result);
+    const reply = await browser.runtime.sendMessage(request);
+    if (isErrorReply(reply)) {
+      setRecord(
+        (current) =>
+          ({
+            ...(current ?? {
+              url: request.url,
+              title: request.title,
+              tags: [],
+              startedAt: Date.now(),
+            }),
+            status: 'error',
+            error: reply.error,
+            updatedAt: Date.now(),
+          }) as SaveRecord,
+      );
+      return;
+    }
+    if (reply) setRecord(reply as SaveRecord);
   }
 
   function onSave() {
@@ -139,7 +168,9 @@ export function App() {
       )}
 
       {!isSaveableUrl(tab.url) && (
-        <div className="status err">This page is not an http(s) URL, so it cannot be saved.</div>
+        <div className="status err">
+          This page is not an http(s) URL, so it cannot be saved.
+        </div>
       )}
 
       {record && (
@@ -155,7 +186,9 @@ export function App() {
               {record.indexed ? 'Saved earlier to ' : 'Saved to '}
               <code>{record.location ?? record.path}</code>
               {record.indexed && ` on ${new Date(record.updatedAt).toLocaleDateString()}`}
-              {record.bytes ? ` · ${Math.max(1, Math.round(record.bytes / 1024))} KB` : ''}
+              {record.bytes
+                ? ` · ${Math.max(1, Math.round(record.bytes / 1024))} KB`
+                : ''}
               {record.link && (
                 <>
                   {' · '}

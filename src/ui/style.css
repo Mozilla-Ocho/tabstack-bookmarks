@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 /*
  * Tabstack brand surface for the extension's own pages.
  *
@@ -257,4 +261,32 @@ code {
 
 .status.busy {
   border-left-color: var(--accent-fill);
+}
+
+.crash {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 28px 20px;
+}
+
+.crash h1 {
+  margin-bottom: 6px;
+}
+
+.crash pre {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--err);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.crash .actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
 }

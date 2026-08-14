@@ -1,6 +1,15 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { joinPath } from '../markdown';
 import type { GitHubSettings, Settings } from '../settings';
-import { toBase64, type SavePayload, type SaveResult, type StorageBackend } from './types';
+import {
+  toBase64,
+  type SavePayload,
+  type SaveResult,
+  type StorageBackend,
+} from './types';
 
 const API = 'https://api.github.com';
 
@@ -25,13 +34,10 @@ function reachError(error: unknown): Error {
 }
 
 async function errorFrom(res: Response, fallback: string): Promise<Error> {
-  let message = '';
-  try {
-    const json = (await res.json()) as { message?: string };
-    message = json.message ?? '';
-  } catch {
-    message = '';
-  }
+  const message = await res
+    .json()
+    .then((json) => (json as { message?: string }).message ?? '')
+    .catch(() => '');
   if (res.status === 401 || res.status === 403) {
     return new Error(
       `GitHub rejected the token (${res.status}). It needs "Contents: read and write" on this repo. ${message}`.trim(),
@@ -46,10 +52,7 @@ async function errorFrom(res: Response, fallback: string): Promise<Error> {
 }
 
 /** Returns the blob sha of an existing file, or null when it does not exist. */
-async function getSha(
-  cfg: GitHubSettings,
-  path: string,
-): Promise<string | null> {
+async function getSha(cfg: GitHubSettings, path: string): Promise<string | null> {
   const url = `${API}/repos/${cfg.owner}/${cfg.repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(cfg.branch)}`;
   const res = await fetch(url, { headers: headers(cfg.token) });
   if (res.status === 404) return null;

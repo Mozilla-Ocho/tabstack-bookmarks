@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { browser } from '#imports';
 import { isSaveableUrl } from './save';
 
@@ -95,5 +99,7 @@ export async function listBookmarkFolders(): Promise<BookmarkFolder[]> {
   };
 
   for (const root of roots) visit(root, root.title?.trim() ? [root.title.trim()] : []);
-  return folders.filter((folder) => folder.count > 0).sort((a, b) => a.path.localeCompare(b.path));
+  return folders
+    .filter((folder) => folder.count > 0)
+    .sort((a, b) => a.path.localeCompare(b.path));
 }

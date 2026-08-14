@@ -69,21 +69,21 @@ Screenshots live in `store/screenshots/`.
 
 ## Permission justifications (Chrome Web Store)
 
-| Permission | Justification |
-| --- | --- |
-| `storage` | Stores the user's settings, destination credentials, and the index of which URLs have already been saved. |
-| `unlimitedStorage` | The saved-URL index grows with the user's library; a large import would otherwise exhaust the 10 MB extension storage quota. |
-| `activeTab` | Reads the URL and title of the tab the user chose to save. |
-| `tabs` | Identifies the active tab when saving via the keyboard shortcut or context menu, where no popup is open to supply it. |
-| `downloads` | Writes the markdown file when the user's chosen destination is a local folder. |
-| `bookmarks` | Read-only listing of existing bookmarks for the optional bulk import feature. Bookmarks are never modified. |
-| `contextMenus` | Adds "Save page to Tabstack" and "Save link to Tabstack" right-click items. |
-| `notifications` | Reports completion or failure of a save, and the result of a background import. |
-| `alarms` | Resumes an in-progress bookmark import after the browser suspends the service worker. |
-| `host_permissions: https://api.tabstack.ai/*` | The extraction API that converts a URL to markdown. This is the extension's core function. |
-| `host_permissions: https://api.github.com/*` | Commits the markdown file when the user configures the GitHub destination. Unused otherwise. |
-| Optional `http(s)://localhost/*`, `http(s)://127.0.0.1/*` | Requested only if the user configures the Obsidian destination, which runs on their own machine. |
-| Remote code | None. No remote code is loaded or executed; all code ships in the package. |
+| Permission                                                | Justification                                                                                                                |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                                 | Stores the user's settings, destination credentials, and the index of which URLs have already been saved.                    |
+| `unlimitedStorage`                                        | The saved-URL index grows with the user's library; a large import would otherwise exhaust the 10 MB extension storage quota. |
+| `activeTab`                                               | Reads the URL and title of the tab the user chose to save.                                                                   |
+| `tabs`                                                    | Identifies the active tab when saving via the keyboard shortcut or context menu, where no popup is open to supply it.        |
+| `downloads`                                               | Writes the markdown file when the user's chosen destination is a local folder.                                               |
+| `bookmarks`                                               | Read-only listing of existing bookmarks for the optional bulk import feature. Bookmarks are never modified.                  |
+| `contextMenus`                                            | Adds "Save page to Tabstack" and "Save link to Tabstack" right-click items.                                                  |
+| `notifications`                                           | Reports completion or failure of a save, and the result of a background import.                                              |
+| `alarms`                                                  | Resumes an in-progress bookmark import after the browser suspends the service worker.                                        |
+| `host_permissions: https://api.tabstack.ai/*`             | The extraction API that converts a URL to markdown. This is the extension's core function.                                   |
+| `host_permissions: https://api.github.com/*`              | Commits the markdown file when the user configures the GitHub destination. Unused otherwise.                                 |
+| Optional `http(s)://localhost/*`, `http(s)://127.0.0.1/*` | Requested only if the user configures the Obsidian destination, which runs on their own machine.                             |
+| Remote code                                               | None. No remote code is loaded or executed; all code ships in the package.                                                   |
 
 ## Data disclosures (Chrome Web Store "Privacy practices")
 
@@ -127,12 +127,12 @@ blobs beyond standard bundler output of React and the extension's own source.
 
 ## Screenshots
 
-| File | Shows |
-| --- | --- |
-| `01-options.png` | Settings: API key, effort, summaries, destination |
-| `02-recent-saves.png` | Filename template, recent saves with real file paths |
-| `03-import.png` | Bookmark import, mid-run |
-| `04-output.png` | The markdown a save produces, frontmatter and key points |
+| File                  | Shows                                                    |
+| --------------------- | -------------------------------------------------------- |
+| `01-options.png`      | Settings: API key, effort, summaries, destination        |
+| `02-recent-saves.png` | Filename template, recent saves with real file paths     |
+| `03-import.png`       | Bookmark import, mid-run                                 |
+| `04-output.png`       | The markdown a save produces, frontmatter and key points |
 
 Captured at 1280×800 from a real Chrome running the production build, with real API
 responses — no mockups. Regenerate them after UI changes rather than shipping stale

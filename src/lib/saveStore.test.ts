@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { SaveRecord } from './messages';
@@ -75,7 +79,8 @@ describe('getRecordOrIndexed', () => {
 
   it('rebuilds a done record from the index once history is gone', async () => {
     await rememberSave(record('https://ex.com/old', 500, { path: 'kept.md' }));
-    for (let i = 1; i <= 31; i++) await putRecord(record(`https://ex.com/${i}`, 1_000 + i));
+    for (let i = 1; i <= 31; i++)
+      await putRecord(record(`https://ex.com/${i}`, 1_000 + i));
 
     const rebuilt = await getRecordOrIndexed('https://ex.com/old');
     expect(rebuilt).toMatchObject({

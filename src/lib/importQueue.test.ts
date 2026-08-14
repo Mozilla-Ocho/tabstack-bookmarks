@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BookmarkItem } from './bookmarks';
@@ -80,7 +84,10 @@ describe('planImport', () => {
     await rememberSave(record({ url: 'https://ex.com/c', status: 'error' }));
 
     const plan = await planImport({ ...OPTIONS, skipSaved: true });
-    expect(plan.items.map((i) => i.url)).toEqual(['https://ex.com/a', 'https://ex.com/c']);
+    expect(plan.items.map((i) => i.url)).toEqual([
+      'https://ex.com/a',
+      'https://ex.com/c',
+    ]);
     expect(plan.skipped).toBe(1);
   });
 
@@ -92,7 +99,10 @@ describe('planImport', () => {
     }
 
     const plan = await planImport({ ...OPTIONS, skipSaved: true });
-    expect(plan.items.map((i) => i.url)).toEqual(['https://ex.com/b', 'https://ex.com/c']);
+    expect(plan.items.map((i) => i.url)).toEqual([
+      'https://ex.com/b',
+      'https://ex.com/c',
+    ]);
     expect(plan.skipped).toBe(1);
   });
 
@@ -163,7 +173,11 @@ describe('processJob', () => {
 
   it('gives up on an item after the retry budget', async () => {
     save.mockResolvedValue(
-      record({ status: 'error', error: 'Tabstack rate limit hit (429).', errorStatus: 429 }),
+      record({
+        status: 'error',
+        error: 'Tabstack rate limit hit (429).',
+        errorStatus: 429,
+      }),
     );
 
     await startImport({ ...OPTIONS, limit: 1 });

@@ -1,0 +1,50 @@
+name: Bug report
+description: Something behaved incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste your API key, GitHub token, or Obsidian key into this issue.
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      placeholder: '0.1.0'
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options: [Firefox, Chrome, Edge, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: destination
+    attributes:
+      label: Destination
+      options: [Local folder, GitHub repo, Obsidian vault, Not relevant]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the exact error text the extension showed, if any.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. …

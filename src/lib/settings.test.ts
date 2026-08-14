@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -6,6 +10,7 @@ import {
   configErrors,
   DEFAULT_SETTINGS,
   getSettings,
+  SCHEMA_VERSION,
   setSettings,
 } from './settings';
 
@@ -107,5 +112,32 @@ describe('isGrantableOrigin', () => {
     expect(isGrantableOrigin('http://vault.lan:27123/*')).toBe(false);
     expect(isGrantableOrigin('https://example.com/*')).toBe(false);
     expect(isGrantableOrigin('nonsense')).toBe(false);
+  });
+});
+
+describe('schema version', () => {
+  it('stamps the current version on read and write', async () => {
+    expect((await getSettings()).schemaVersion).toBe(SCHEMA_VERSION);
+    await setSettings({ apiKey: 'k' });
+    const stored = (await fakeBrowser.storage.local.get('settings')).settings as {
+      schemaVersion: number;
+    };
+    expect(stored.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+
+  it('upgrades a stored object that predates the field', async () => {
+    await fakeBrowser.storage.local.set({ settings: { apiKey: 'old' } });
+    const settings = await getSettings();
+    expect(settings.apiKey).toBe('old');
+    expect(settings.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+
+  it('keeps settings written by a newer version rather than discarding them', async () => {
+    await fakeBrowser.storage.local.set({
+      settings: { schemaVersion: 99, apiKey: 'from-the-future' },
+    });
+    const settings = await getSettings();
+    expect(settings.apiKey).toBe('from-the-future');
+    expect(settings.backend).toBe(DEFAULT_SETTINGS.backend);
   });
 });

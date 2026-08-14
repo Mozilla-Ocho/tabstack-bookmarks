@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type Settings } from '../settings';
 import { obsidianBackend, verifyObsidian } from './obsidian';
@@ -102,7 +106,11 @@ describe('verifyObsidian', () => {
   it('reports the Obsidian version on success', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
-        JSON.stringify({ authenticated: true, service: 'Obsidian Local REST API', versions: { obsidian: '1.9.0' } }),
+        JSON.stringify({
+          authenticated: true,
+          service: 'Obsidian Local REST API',
+          versions: { obsidian: '1.9.0' },
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
     );

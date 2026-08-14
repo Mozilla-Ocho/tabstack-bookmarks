@@ -40,14 +40,14 @@ reporting, advertising, tracking, or remote font/CDN request of any kind.
 All of the following lives in the browser's extension storage
 (`browser.storage.local`), on your device only. None of it is synced to any account.
 
-| Data | Purpose |
-| --- | --- |
-| Tabstack API key | Authenticating extraction requests |
-| GitHub token / Obsidian API key (if configured) | Authenticating writes to your destination |
-| Settings | Destination, filename template, tags, effort, toggles |
-| Last 30 save records | The "Recent saves" list, and re-saving a page in place |
+| Data                                                | Purpose                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------------- |
+| Tabstack API key                                    | Authenticating extraction requests                                |
+| GitHub token / Obsidian API key (if configured)     | Authenticating writes to your destination                         |
+| Settings                                            | Destination, filename template, tags, effort, toggles             |
+| Last 30 save records                                | The "Recent saves" list, and re-saving a page in place            |
 | Saved-URL index (URL, path, destination, timestamp) | Knowing which pages you already saved, so an import can skip them |
-| Import job state (while an import runs) | Resuming after the browser suspends the extension |
+| Import job state (while an import runs)             | Resuming after the browser suspends the extension                 |
 
 Credentials are stored as entered so they can be used for their destination. They are
 never sent anywhere except to the service they belong to.
@@ -62,18 +62,18 @@ never sent anywhere except to the service they belong to.
 
 ## Browser permissions, and why each exists
 
-| Permission | Why |
-| --- | --- |
-| `storage`, `unlimitedStorage` | Keep settings and the saved-URL index; the index grows with your library, and Chrome otherwise caps extension storage at 10 MB |
-| `activeTab`, `tabs` | Read the URL and title of the tab you are saving |
-| `downloads` | Write the markdown file when the destination is a local folder |
-| `bookmarks` | List your existing bookmarks for the optional bulk import |
-| `contextMenus` | The "Save page/link to Tabstack" right-click items |
-| `notifications` | Tell you when a save or an import finished or failed |
-| `alarms` | Resume a long import after the browser suspends the extension |
-| `https://api.tabstack.ai/*` | The extraction API |
-| `https://api.github.com/*` | Only used when the GitHub destination is configured |
-| Optional `localhost` / `127.0.0.1` | Only requested if you configure the Obsidian destination |
+| Permission                         | Why                                                                                                                            |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `storage`, `unlimitedStorage`      | Keep settings and the saved-URL index; the index grows with your library, and Chrome otherwise caps extension storage at 10 MB |
+| `activeTab`, `tabs`                | Read the URL and title of the tab you are saving                                                                               |
+| `downloads`                        | Write the markdown file when the destination is a local folder                                                                 |
+| `bookmarks`                        | List your existing bookmarks for the optional bulk import                                                                      |
+| `contextMenus`                     | The "Save page/link to Tabstack" right-click items                                                                             |
+| `notifications`                    | Tell you when a save or an import finished or failed                                                                           |
+| `alarms`                           | Resume a long import after the browser suspends the extension                                                                  |
+| `https://api.tabstack.ai/*`        | The extraction API                                                                                                             |
+| `https://api.github.com/*`         | Only used when the GitHub destination is configured                                                                            |
+| Optional `localhost` / `127.0.0.1` | Only requested if you configure the Obsidian destination                                                                       |
 
 The extension has no content scripts and does not inject anything into web pages.
 

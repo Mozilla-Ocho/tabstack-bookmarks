@@ -1,7 +1,16 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { browser } from '#imports';
 import { joinPath } from '../markdown';
 import type { Settings } from '../settings';
-import { toBase64, type SavePayload, type SaveResult, type StorageBackend } from './types';
+import {
+  toBase64,
+  type SavePayload,
+  type SaveResult,
+  type StorageBackend,
+} from './types';
 
 /**
  * Blob URLs are unavailable inside a Chrome MV3 service worker but fine in a
@@ -59,7 +68,11 @@ function waitForFilename(id: number, fallback: string): Promise<string> {
       resolve(name);
     };
 
-    const onChanged = (delta: { id: number; state?: { current?: string }; error?: { current?: string } }) => {
+    const onChanged = (delta: {
+      id: number;
+      state?: { current?: string };
+      error?: { current?: string };
+    }) => {
       if (delta.id !== id) return;
       if (delta.error?.current) {
         browser.downloads.onChanged.removeListener(onChanged);

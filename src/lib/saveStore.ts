@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { browser } from '#imports';
 import type { SaveRecord } from './messages';
 import { forgetSaved, getSaved, markSaved, pruneSaved } from './savedIndex';
@@ -21,9 +25,7 @@ export async function putRecord(record: SaveRecord): Promise<void> {
   const store = await read();
   store[record.url] = record;
 
-  const entries = Object.entries(store).sort(
-    (a, b) => b[1].updatedAt - a[1].updatedAt,
-  );
+  const entries = Object.entries(store).sort((a, b) => b[1].updatedAt - a[1].updatedAt);
   await browser.storage.local.set({ [KEY]: Object.fromEntries(entries.slice(0, MAX)) });
 }
 

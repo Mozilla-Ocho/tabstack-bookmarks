@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type Settings } from '../settings';
 import { githubBackend, verifyGitHub } from './github';
@@ -7,7 +11,13 @@ const settings: Settings = {
   ...DEFAULT_SETTINGS,
   apiKey: 'ts_key',
   backend: 'github',
-  github: { token: 'gh_tok', owner: 'me', repo: 'notes', branch: 'main', folder: 'bookmarks' },
+  github: {
+    token: 'gh_tok',
+    owner: 'me',
+    repo: 'notes',
+    branch: 'main',
+    folder: 'bookmarks',
+  },
 };
 
 const payload: SavePayload = {
@@ -57,7 +67,10 @@ describe('githubBackend.save', () => {
     expect(body.message).toBe('Add bookmark: Post');
     expect(atob(body.content)).toContain('Body');
 
-    expect(result).toEqual({ location: 'me/notes/bookmarks/2026-08-14-post.md', link: 'https://gh/blob' });
+    expect(result).toEqual({
+      location: 'me/notes/bookmarks/2026-08-14-post.md',
+      link: 'https://gh/blob',
+    });
   });
 
   it('uniquifies the filename instead of clobbering an existing note', async () => {
@@ -117,19 +130,31 @@ describe('githubBackend.save', () => {
 describe('verifyGitHub', () => {
   it('rejects a repo the token cannot push to', async () => {
     fetchMock.mockResolvedValueOnce(
-      json(200, { full_name: 'me/notes', default_branch: 'main', permissions: { push: false } }),
+      json(200, {
+        full_name: 'me/notes',
+        default_branch: 'main',
+        permissions: { push: false },
+      }),
     );
-    await expect(verifyGitHub(settings.github)).rejects.toThrow(/cannot write to me\/notes/);
+    await expect(verifyGitHub(settings.github)).rejects.toThrow(
+      /cannot write to me\/notes/,
+    );
   });
 
   it('explains an unreachable GitHub', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('NetworkError'));
-    await expect(verifyGitHub(settings.github)).rejects.toThrow(/Could not reach api\.github\.com/);
+    await expect(verifyGitHub(settings.github)).rejects.toThrow(
+      /Could not reach api\.github\.com/,
+    );
   });
 
   it('reports the default branch on success', async () => {
     fetchMock.mockResolvedValueOnce(
-      json(200, { full_name: 'me/notes', default_branch: 'trunk', permissions: { push: true } }),
+      json(200, {
+        full_name: 'me/notes',
+        default_branch: 'trunk',
+        permissions: { push: true },
+      }),
     );
     await expect(verifyGitHub(settings.github)).resolves.toContain('trunk');
   });

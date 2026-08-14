@@ -41,12 +41,12 @@ pnpm build:firefox     # → .output/firefox-mv3
 pnpm build             # → .output/chrome-mv3
 ```
 
-**Firefox** — `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → pick
+**Firefox** — `about:debugging#/runtime/this-firefox` → _Load Temporary Add-on_ → pick
 `.output/firefox-mv3/manifest.json`. Temporary add-ons are removed when Firefox restarts;
 `pnpm zip:firefox` produces the AMO upload (plus a sources zip) when you want a signed
 install.
 
-**Chrome** — `chrome://extensions` → *Developer mode* → *Load unpacked* →
+**Chrome** — `chrome://extensions` → _Developer mode_ → _Load unpacked_ →
 `.output/chrome-mv3`.
 
 Requires Node 22.12+ and pnpm. Firefox 142+ (see [Browser notes](#browser-notes)).
@@ -68,7 +68,7 @@ Open the extension's options page:
   prefer to review first). Edit title, tags or a note, then **Re-save** to update the
   same file.
 - <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> → save the active tab with no popup.
-- **Right-click** a page or a link → *Save … to Tabstack*. Saving a link never opens it.
+- **Right-click** a page or a link → _Save … to Tabstack_. Saving a link never opens it.
 
 A page you saved months ago still shows as saved when you reopen the popup, and
 **Re-save** overwrites that same file instead of making a second copy.
@@ -80,12 +80,12 @@ local files and `about:` pages are rejected up front rather than failing later.
 
 ```markdown
 ---
-title: "Example Domain"
-url: "https://example.com/"
-saved_at: "2026-08-14T20:28:03.254Z"
+title: 'Example Domain'
+url: 'https://example.com/'
+saved_at: '2026-08-14T20:28:03.254Z'
 tags:
-  - "imported"
-  - "Reading"
+  - 'imported'
+  - 'Reading'
 source: tabstack
 ---
 
@@ -105,11 +105,11 @@ directory.
 
 ## Destinations
 
-| Destination | How it writes | What you need |
-| --- | --- | --- |
-| **Local folder** | Browser downloads API, into `<download dir>/<subfolder>/` | Nothing. Browsers can only write inside the download directory, so point Firefox's download folder at your vault (or symlink it) if you want notes to land in Obsidian. |
-| **GitHub repo** | Commit via the contents API | A fine-grained token with `Contents: read and write`, plus owner, repo, branch and folder. |
-| **Obsidian vault** | `PUT /vault/<path>` on the Local REST API plugin | The plugin enabled with Obsidian running. It serves HTTPS on 27124 with a **self-signed certificate**, which browsers reject — so either enable the plugin's *Non-encrypted (HTTP) Server* option and point at port 27123, or open `https://127.0.0.1:27124` in a tab once and accept the certificate. |
+| Destination        | How it writes                                             | What you need                                                                                                                                                                                                                                                                                          |
+| ------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Local folder**   | Browser downloads API, into `<download dir>/<subfolder>/` | Nothing. Browsers can only write inside the download directory, so point Firefox's download folder at your vault (or symlink it) if you want notes to land in Obsidian.                                                                                                                                |
+| **GitHub repo**    | Commit via the contents API                               | A fine-grained token with `Contents: read and write`, plus owner, repo, branch and folder.                                                                                                                                                                                                             |
+| **Obsidian vault** | `PUT /vault/<path>` on the Local REST API plugin          | The plugin enabled with Obsidian running. It serves HTTPS on 27124 with a **self-signed certificate**, which browsers reject — so either enable the plugin's _Non-encrypted (HTTP) Server_ option and point at port 27123, or open `https://127.0.0.1:27124` in a tab once and accept the certificate. |
 
 Duplicates: GitHub and Obsidian check whether the path is taken and append `-1`, `-2`, …
 unless you asked to overwrite; downloads use the browser's own uniquify.
@@ -122,7 +122,7 @@ When on, each save also asks `/generate/json` for a `summary`, three-to-five
 a `## Key points` section above the article, and suggested tags are merged into the
 bookmark's tags (that part is separately switchable).
 
-The summary runs *alongside* extraction rather than after it, and it can never cost you
+The summary runs _alongside_ extraction rather than after it, and it can never cost you
 the page: if the summary call fails, the save still completes and the record notes why.
 The popup has a per-save **Summarize with AI** checkbox that overrides the setting once.
 
@@ -151,18 +151,18 @@ Options → **Forget saved history** clears the index; your files are untouched.
 
 ## Settings
 
-| Setting | Default | Notes |
-| --- | --- | --- |
-| API key | — | Stored in extension local storage on this device. Never synced. |
-| Fetch effort | `standard` | `min` 1–5s, `standard` 3–15s, `max` full browser render 15–60s for JS-heavy pages. |
-| Content scope | `main` | `main` is the article; `full` includes nav, footer and links. |
-| Bypass cache | off | Forces Tabstack to refetch instead of serving a cached extraction. |
-| AI summary | off | Second API call per save. |
-| Use suggested tags | on | Only applies when summaries are on. |
-| Filename template | `{date}-{slug}.md` | Slashes create folders. |
-| Tags on every bookmark | — | Merged ahead of per-save tags. |
-| Auto-save on popup open | on | Turn off to review before spending a call. |
-| Destination | Local folder | Plus that destination's own fields. |
+| Setting                 | Default            | Notes                                                                              |
+| ----------------------- | ------------------ | ---------------------------------------------------------------------------------- |
+| API key                 | —                  | Stored in extension local storage on this device. Never synced.                    |
+| Fetch effort            | `standard`         | `min` 1–5s, `standard` 3–15s, `max` full browser render 15–60s for JS-heavy pages. |
+| Content scope           | `main`             | `main` is the article; `full` includes nav, footer and links.                      |
+| Bypass cache            | off                | Forces Tabstack to refetch instead of serving a cached extraction.                 |
+| AI summary              | off                | Second API call per save.                                                          |
+| Use suggested tags      | on                 | Only applies when summaries are on.                                                |
+| Filename template       | `{date}-{slug}.md` | Slashes create folders.                                                            |
+| Tags on every bookmark  | —                  | Merged ahead of per-save tags.                                                     |
+| Auto-save on popup open | on                 | Turn off to review before spending a call.                                         |
+| Destination             | Local folder       | Plus that destination's own fields.                                                |
 
 ## Privacy
 
@@ -184,7 +184,9 @@ Options → **Forget saved history** clears the index; your files are untouched.
 pnpm install
 pnpm dev:firefox     # Firefox with HMR
 pnpm dev             # Chrome with HMR
-pnpm test            # vitest — 103 tests
+pnpm lint            # eslint (type-aware, plus react-hooks)
+pnpm format          # prettier --write .
+pnpm test            # vitest — 110 tests
 pnpm compile         # tsc --noEmit
 pnpm build:firefox   # production build
 pnpm zip:firefox     # AMO package + sources zip
@@ -201,6 +203,9 @@ entrypoints/
   popup/            one-click save, editable title/tags/note
   options/          API key, destination, filename template, recent saves
   import/           bulk import of existing bookmarks
+src/ui/
+  style.css         brand tokens, shared component styles
+  ErrorBoundary.tsx keeps a render error from blanking a page
 src/lib/
   tabstack.ts       /extract/markdown + /generate/json clients, error mapping
   save.ts           extract → compose → store orchestration
@@ -245,7 +250,7 @@ node scripts/chrome-drive.mjs options.html --shot=/tmp/chrome.png
 
 Four touch points: implement `StorageBackend` in `src/lib/backends/`, register it in
 `src/lib/backends/index.ts`, add its id to `BackendId` and its fields to `Settings` in
-`src/lib/settings.ts` (defaults *and* the deep merge in `getSettings`), then add its
+`src/lib/settings.ts` (defaults _and_ the deep merge in `getSettings`), then add its
 fieldset to the options page. If it talks to a user-supplied host, extend
 `backendOrigin()` so its origin gets requested at runtime.
 
@@ -254,8 +259,8 @@ fieldset to the options page. If it talks to a user-supplied host, extend
 Brand tokens live in `src/ui/style.css`, mirroring `tabstack-api-docs/theme.css` rather
 than inventing a second palette:
 
-- Accent `#ff97ea`. Accent *fills* keep the raw pink with near-black text, matching the
-  marketing CTAs; accent *text* and focus rings use the darkened
+- Accent `#ff97ea`. Accent _fills_ keep the raw pink with near-black text, matching the
+  marketing CTAs; accent _text_ and focus rings use the darkened
   `oklch(from … calc(l * 0.7) calc(c * 1.2) h)` variant in light mode, where raw pink on
   white fails contrast.
 - A neutral hue-0 grey ramp on `#fff` / `#0a0a0a` — no blue-tinted greys.
@@ -298,8 +303,9 @@ each size so the bars stay crisp at 16px.
 `RELEASING.md` covers the checks, version bump and both store submissions.
 `store/LISTING.md` holds the listing copy, permission justifications and the answers each
 store's review form asks for, and `store/screenshots/` the 1280×800 captures (generated
-from a real browser, not mocked up). CI runs typecheck, tests, both builds and
-`web-ext lint` on every push, and uploads the packaged Firefox zip as an artifact.
+from a real browser, not mocked up). CI runs typecheck, lint, formatting, tests, both builds and `web-ext lint` on every push,
+and uploads the packaged Firefox zip plus its sources archive as artifacts. Dependabot
+groups weekly dependency updates.
 
 ## Privacy and licence
 

@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { useEffect, useState } from 'react';
 import { browser } from '#imports';
 import { BACKENDS, BACKEND_ORDER } from '@/src/lib/backends';
@@ -45,11 +49,14 @@ export function App() {
   // User-supplied destinations need their own origin permission.
   const origin = settings ? backendOrigin(settings) : null;
   useEffect(() => {
-    if (!origin) {
-      setOriginGranted(true);
-      return;
-    }
-    void hasOrigin(origin).then(setOriginGranted);
+    let alive = true;
+    void (async () => {
+      const granted = origin ? await hasOrigin(origin) : true;
+      if (alive) setOriginGranted(granted);
+    })();
+    return () => {
+      alive = false;
+    };
   }, [origin]);
 
   if (!settings) return <div className="options">Loading…</div>;
@@ -96,7 +103,11 @@ export function App() {
           `${origin} is not a loopback address, so this build cannot request access to it.`,
         );
       }
-      if (origin && !(await hasOrigin(origin)) && !(await requestHostPermissions([origin]))) {
+      if (
+        origin &&
+        !(await hasOrigin(origin)) &&
+        !(await requestHostPermissions([origin]))
+      ) {
         throw new Error(`Access to ${origin} was not granted.`);
       }
       setOriginGranted(true);
@@ -227,11 +238,18 @@ export function App() {
         )}
 
         <div className="actions">
-          <button onClick={() => void testKey()} disabled={busy !== null || !settings.apiKey}>
+          <button
+            onClick={() => void testKey()}
+            disabled={busy !== null || !settings.apiKey}
+          >
             {busy === 'key' ? 'Testing…' : 'Test key'}
           </button>
           {keyNote && (
-            <span className={`status ${keyNote.kind === 'ok' ? 'ok' : 'err'}`} role="status" aria-live="polite">
+            <span
+              className={`status ${keyNote.kind === 'ok' ? 'ok' : 'err'}`}
+              role="status"
+              aria-live="polite"
+            >
               {keyNote.text}
             </span>
           )}
@@ -263,7 +281,9 @@ export function App() {
             The extension needs permission to reach <code>{origin}</code>.{' '}
             <button
               className="link"
-              onClick={async () => setOriginGranted(await requestHostPermissions([origin]))}
+              onClick={async () =>
+                setOriginGranted(await requestHostPermissions([origin]))
+              }
             >
               Grant access
             </button>
@@ -273,8 +293,8 @@ export function App() {
         {origin && !isGrantableOrigin(origin) && (
           <div className="status err" role="status">
             <code>{origin}</code> is not a loopback address. This build can only be
-            granted access to <code>localhost</code> and <code>127.0.0.1</code>; a vault on
-            another machine needs its pattern added to{' '}
+            granted access to <code>localhost</code> and <code>127.0.0.1</code>; a vault
+            on another machine needs its pattern added to{' '}
             <code>optional_host_permissions</code> and a rebuild.
           </div>
         )}
@@ -305,7 +325,9 @@ export function App() {
                   id="owner"
                   value={settings.github.owner}
                   onChange={(e) =>
-                    patch({ github: { ...settings.github, owner: e.target.value.trim() } })
+                    patch({
+                      github: { ...settings.github, owner: e.target.value.trim() },
+                    })
                   }
                 />
               </div>
@@ -327,7 +349,9 @@ export function App() {
                   id="branch"
                   value={settings.github.branch}
                   onChange={(e) =>
-                    patch({ github: { ...settings.github, branch: e.target.value.trim() } })
+                    patch({
+                      github: { ...settings.github, branch: e.target.value.trim() },
+                    })
                   }
                 />
               </div>
@@ -372,7 +396,9 @@ export function App() {
                   value={settings.obsidian.baseUrl}
                   placeholder="http://127.0.0.1:27123"
                   onChange={(e) =>
-                    patch({ obsidian: { ...settings.obsidian, baseUrl: e.target.value.trim() } })
+                    patch({
+                      obsidian: { ...settings.obsidian, baseUrl: e.target.value.trim() },
+                    })
                   }
                 />
               </div>
@@ -410,14 +436,17 @@ export function App() {
           </>
         )}
 
-
         {settings.backend !== 'download' && (
           <div className="actions">
             <button onClick={() => void testDestination()} disabled={busy !== null}>
               {busy === 'dest' ? 'Checking…' : 'Test destination'}
             </button>
             {destNote && (
-              <span className={`status ${destNote.kind === 'ok' ? 'ok' : 'err'}`} role="status" aria-live="polite">
+              <span
+                className={`status ${destNote.kind === 'ok' ? 'ok' : 'err'}`}
+                role="status"
+                aria-live="polite"
+              >
                 {destNote.text}
               </span>
             )}
@@ -437,7 +466,8 @@ export function App() {
           <p className="help">
             Tokens: <code>{'{date}'}</code> <code>{'{yyyy}'}</code> <code>{'{mm}'}</code>{' '}
             <code>{'{dd}'}</code> <code>{'{slug}'}</code> <code>{'{title}'}</code>{' '}
-            <code>{'{host}'}</code>. Slashes create folders. Example: <code>{preview}</code>
+            <code>{'{host}'}</code>. Slashes create folders. Example:{' '}
+            <code>{preview}</code>
           </p>
         </div>
 
@@ -460,8 +490,8 @@ export function App() {
           Start saving as soon as the popup opens
         </label>
         <p className="help">
-          <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> saves the active tab without opening
-          the popup.
+          <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> saves the active tab without
+          opening the popup.
         </p>
       </section>
 

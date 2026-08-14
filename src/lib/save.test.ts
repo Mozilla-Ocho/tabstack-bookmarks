@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SavePayload } from './backends/types';
@@ -141,7 +145,10 @@ describe('runSave', () => {
 
   it('reports missing configuration instead of calling the API', async () => {
     await setSettings({ apiKey: '' });
-    const result = await runSave({ type: 'save', url: 'https://ex.com', title: '' }, () => {});
+    const result = await runSave(
+      { type: 'save', url: 'https://ex.com', title: '' },
+      () => {},
+    );
     expect(result.status).toBe('error');
     expect(result.error).toMatch(/API key is missing.*options/);
     expect(extract).not.toHaveBeenCalled();
@@ -154,7 +161,10 @@ describe('runSave', () => {
     });
     originGranted.mockResolvedValue(false);
 
-    const result = await runSave({ type: 'save', url: 'https://ex.com', title: '' }, () => {});
+    const result = await runSave(
+      { type: 'save', url: 'https://ex.com', title: '' },
+      () => {},
+    );
     expect(originGranted).toHaveBeenCalledWith('http://vault.lan:27123/*');
     expect(result.status).toBe('error');
     expect(result.error).toMatch(/not allowed to talk to http:\/\/vault.lan:27123\/\*/);
@@ -163,7 +173,10 @@ describe('runSave', () => {
 
   it('surfaces API errors on the record', async () => {
     extract.mockRejectedValue(new Error('Tabstack rate limit hit (429).'));
-    const result = await runSave({ type: 'save', url: 'https://ex.com', title: '' }, () => {});
+    const result = await runSave(
+      { type: 'save', url: 'https://ex.com', title: '' },
+      () => {},
+    );
     expect(result.status).toBe('error');
     expect(result.error).toBe('Tabstack rate limit hit (429).');
     expect(getBackend).not.toHaveBeenCalled();
@@ -177,7 +190,13 @@ describe('runSave', () => {
 
   it('adds summary, key points and suggested tags when asked', async () => {
     const result = await runSave(
-      { type: 'save', url: 'https://ex.com/post', title: 't', tags: ['mine'], summarize: true },
+      {
+        type: 'save',
+        url: 'https://ex.com/post',
+        title: 't',
+        tags: ['mine'],
+        summarize: true,
+      },
       () => {},
     );
 
@@ -220,7 +239,10 @@ describe('runSave', () => {
 
   it('records the API status so the importer can back off', async () => {
     extract.mockRejectedValue(new TabstackError('Tabstack rate limit hit (429).', 429));
-    const result = await runSave({ type: 'save', url: 'https://ex.com', title: '' }, () => {});
+    const result = await runSave(
+      { type: 'save', url: 'https://ex.com', title: '' },
+      () => {},
+    );
     expect(result.errorStatus).toBe(429);
   });
 
@@ -233,7 +255,10 @@ describe('runSave', () => {
         throw new Error('Download failed: FILE_ACCESS_DENIED');
       }),
     });
-    const result = await runSave({ type: 'save', url: 'https://ex.com', title: '' }, () => {});
+    const result = await runSave(
+      { type: 'save', url: 'https://ex.com', title: '' },
+      () => {},
+    );
     expect(result.status).toBe('error');
     expect(result.error).toMatch(/FILE_ACCESS_DENIED/);
   });

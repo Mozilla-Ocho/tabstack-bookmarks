@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 /**
  * Drives a real Firefox that already has the extension installed, so the
  * options/popup/import pages can be exercised end to end without clicking.
@@ -66,7 +70,9 @@ async function connect(port) {
   await new Promise((ok, err) => {
     socket.once('connect', ok);
     socket.once('error', () =>
-      err(new Error(`nothing listening on ${port} — is Firefox running with -marionette?`)),
+      err(
+        new Error(`nothing listening on ${port} — is Firefox running with -marionette?`),
+      ),
     );
   });
 
@@ -84,7 +90,8 @@ async function connect(port) {
       const payload = JSON.parse(buffer.subarray(start, start + size).toString('utf8'));
       buffer = buffer.subarray(start + size);
       const waiter = waiting.shift();
-      waiter ? waiter(payload) : ready.push(payload);
+      if (waiter) waiter(payload);
+      else ready.push(payload);
     }
   });
   const next = () =>

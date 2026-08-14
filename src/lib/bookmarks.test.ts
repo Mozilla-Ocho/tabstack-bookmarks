@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { collectBookmarks, dedupeByUrl, listBookmarkFolders } from './bookmarks';
@@ -37,17 +41,17 @@ const TREE = [
 beforeEach(() => {
   fakeBrowser.reset();
   vi.spyOn(fakeBrowser.bookmarks, 'getTree').mockResolvedValue(TREE as never);
-  vi.spyOn(fakeBrowser.bookmarks, 'getSubTree').mockImplementation(
-    (async (id: string) => {
-      const find = (nodes: typeof TREE): unknown =>
-        nodes.reduce<unknown>((found, node) => {
-          if (found) return found;
-          if (node.id === id) return node;
-          return node.children ? find(node.children as typeof TREE) : undefined;
-        }, undefined);
-      return [find(TREE)];
-    }) as never,
-  );
+  vi.spyOn(fakeBrowser.bookmarks, 'getSubTree').mockImplementation((async (
+    id: string,
+  ) => {
+    const find = (nodes: typeof TREE): unknown =>
+      nodes.reduce<unknown>((found, node) => {
+        if (found) return found;
+        if (node.id === id) return node;
+        return node.children ? find(node.children as typeof TREE) : undefined;
+      }, undefined);
+    return [find(TREE)];
+  }) as never);
 });
 
 describe('collectBookmarks', () => {
@@ -77,7 +81,10 @@ describe('collectBookmarks', () => {
 
   it('can be scoped to one folder subtree', async () => {
     const items = await collectBookmarks('reading');
-    expect(items.map((i) => i.url)).toEqual(['https://ex.com/three', 'https://ex.com/one']);
+    expect(items.map((i) => i.url)).toEqual([
+      'https://ex.com/three',
+      'https://ex.com/one',
+    ]);
     expect(items[0]!.folders).toEqual(['Reading']);
   });
 });

@@ -6,6 +6,28 @@ All notable changes to this extension. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- An error boundary on every page, so a render error shows the message and a reload button
+  instead of a blank window.
+- `schemaVersion` on stored settings, with a `migrate()` seam for future reshaping.
+- Prettier, ESLint (type-aware, plus react-hooks), `.editorconfig`, and both as CI gates.
+- Dependabot, grouped weekly.
+- MPL-2.0 headers on source files, `CONTRIBUTING.md`, issue templates, and a Chrome Web
+  Store promo tile.
+
+### Fixed
+
+- A rejected background handler replied with `{ error }`, which the popup rendered as an
+  empty status box; replies are now checked with `isErrorReply()` and the message shown.
+- Removed dead pre-`try` assignments in the three API error mappers, and a synchronous
+  `setState` inside an effect on the options page.
+
+### Changed
+
+- TypeScript pinned to 6.x, because `typescript-eslint` does not support 7 yet.
+- `web-ext` is a pinned devDependency instead of `pnpm dlx web-ext@latest` in CI.
+
 ## [0.1.0] — 2026-08-14
 
 First release. Verified end to end against the live Tabstack API in Firefox 153 and

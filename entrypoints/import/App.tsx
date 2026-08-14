@@ -1,12 +1,13 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { useEffect, useState } from 'react';
 import { browser } from '#imports';
 import type { BookmarkFolder } from '@/src/lib/bookmarks';
-import {
-  DEFAULT_IMPORT_OPTIONS,
-  type ImportOptions,
-} from '@/src/lib/importQueue';
+import { DEFAULT_IMPORT_OPTIONS, type ImportOptions } from '@/src/lib/importQueue';
 import { parseTags } from '@/src/lib/markdown';
-import type { ImportProgress, ImportUpdate } from '@/src/lib/messages';
+import { isErrorReply, type ImportProgress, type ImportUpdate } from '@/src/lib/messages';
 import { configErrors, getSettings, type Settings } from '@/src/lib/settings';
 
 const DELAYS = [
@@ -23,14 +24,30 @@ export function App() {
   const [plan, setPlan] = useState<{ count: number; skipped: number } | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  /** Unwraps a background reply, keeping handler errors out of the UI state. */
+  const unwrap = <T,>(reply: unknown): T | null => {
+    if (isErrorReply(reply)) {
+      setFailure(reply.error);
+      return null;
+    }
+    return (reply ?? null) as T | null;
+  };
 
   useEffect(() => {
     (async () => {
       const loaded = await getSettings();
       setSettings(loaded);
       setOptions((current) => ({ ...current, summarize: loaded.summarize }));
-      setFolders((await browser.runtime.sendMessage({ type: 'listFolders' })) ?? []);
-      setProgress((await browser.runtime.sendMessage({ type: 'getImport' })) ?? null);
+      setFolders(
+        unwrap<BookmarkFolder[]>(
+          await browser.runtime.sendMessage({ type: 'listFolders' }),
+        ) ?? [],
+      );
+      setProgress(
+        unwrap<ImportProgress>(await browser.runtime.sendMessage({ type: 'getImport' })),
+      );
     })();
   }, []);
 
@@ -48,14 +65,19 @@ export function App() {
     if (!settings) return;
     let cancelled = false;
     void browser.runtime
-      .sendMessage({ type: 'planImport', options: { ...options, tags: parseTags(tagInput) } })
-      .then((result) => {
-        if (!cancelled) setPlan(result ?? null);
+      .sendMessage({
+        type: 'planImport',
+        options: { ...options, tags: parseTags(tagInput) },
+      })
+      .then((reply) => {
+        if (!cancelled) setPlan(unwrap<{ count: number; skipped: number }>(reply));
       });
     return () => {
       cancelled = true;
     };
-  }, [settings, options.folderId, options.skipSaved, options.limit, tagInput]);
+    // Re-planning on any option change is a local count plus one message, so
+    // depending on the whole object is cheaper than keeping a subset in sync.
+  }, [settings, options, tagInput]);
 
   if (!settings) return <div className="options">Loading…</div>;
 
@@ -70,10 +92,12 @@ export function App() {
     setBusy(true);
     try {
       setProgress(
-        await browser.runtime.sendMessage({
-          type: 'startImport',
-          options: { ...options, tags: parseTags(tagInput) },
-        }),
+        unwrap<ImportProgress>(
+          await browser.runtime.sendMessage({
+            type: 'startImport',
+            options: { ...options, tags: parseTags(tagInput) },
+          }),
+        ),
       );
     } finally {
       setBusy(false);
@@ -93,6 +117,12 @@ export function App() {
           going in the background; you can close this tab.
         </p>
       </header>
+
+      {failure && (
+        <div className="status err" role="alert">
+          The extension's background page reported: {failure}
+        </div>
+      )}
 
       {problems.length > 0 && (
         <div className="status err">
@@ -180,7 +210,9 @@ export function App() {
             type="checkbox"
             checked={options.tagsFromFolders}
             disabled={running}
-            onChange={(e) => setOptions({ ...options, tagsFromFolders: e.target.checked })}
+            onChange={(e) =>
+              setOptions({ ...options, tagsFromFolders: e.target.checked })
+            }
           />
           Turn folder names into tags
         </label>
@@ -251,7 +283,9 @@ export function App() {
           {running && progress.currentTitle && (
             <p className="help">Now saving: {progress.currentTitle}</p>
           )}
-          {progress.abortReason && <div className="status err">{progress.abortReason}</div>}
+          {progress.abortReason && (
+            <div className="status err">{progress.abortReason}</div>
+          )}
 
           {progress.failures.length > 0 && (
             <ul className="failures">
@@ -271,7 +305,11 @@ export function App() {
         {running ? (
           <button
             onClick={async () =>
-              setProgress(await browser.runtime.sendMessage({ type: 'cancelImport' }))
+              setProgress(
+                unwrap<ImportProgress>(
+                  await browser.runtime.sendMessage({ type: 'cancelImport' }),
+                ),
+              )
             }
           >
             Cancel import

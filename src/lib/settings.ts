@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { browser } from '#imports';
 
 export type Effort = 'min' | 'standard' | 'max';
@@ -27,8 +31,15 @@ export interface ObsidianSettings {
   folder: string;
 }
 
+/**
+ * Bumped only when stored settings need *reshaping* — a renamed or re-typed
+ * field. Added fields need no bump, because getSettings() merges defaults.
+ */
+export const SCHEMA_VERSION = 1;
 
 export interface Settings {
+  /** Schema version of the stored object; see migrate(). */
+  schemaVersion: number;
   apiKey: string;
   effort: Effort;
   contentScope: ContentScope;
@@ -51,6 +62,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  schemaVersion: SCHEMA_VERSION,
   apiKey: '',
   effort: 'standard',
   contentScope: 'main',
@@ -68,15 +80,31 @@ export const DEFAULT_SETTINGS: Settings = {
 
 const KEY = 'settings';
 
+/**
+ * Reshapes an older stored object. Nothing to do yet — version 1 is the first
+ * shape — but the seam exists so a future rename has an obvious home, instead of
+ * being smuggled into getSettings() as an `if (raw.oldName)`.
+ */
+function migrate(raw: Partial<Settings>): Partial<Settings> {
+  const from = raw.schemaVersion ?? SCHEMA_VERSION;
+  if (from > SCHEMA_VERSION) {
+    // A newer version of the extension wrote these. Merging defaults over
+    // unknown fields is the safest thing available.
+    return raw;
+  }
+  return raw;
+}
+
 export async function getSettings(): Promise<Settings> {
   const stored = await browser.storage.local.get(KEY);
-  const raw = (stored[KEY] ?? {}) as Partial<Settings>;
+  const raw = migrate((stored[KEY] ?? {}) as Partial<Settings>);
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
     github: { ...DEFAULT_SETTINGS.github, ...(raw.github ?? {}) },
     download: { ...DEFAULT_SETTINGS.download, ...(raw.download ?? {}) },
     obsidian: { ...DEFAULT_SETTINGS.obsidian, ...(raw.obsidian ?? {}) },
+    schemaVersion: SCHEMA_VERSION,
   };
 }
 

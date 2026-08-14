@@ -1,3 +1,7 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { describe, expect, it } from 'vitest';
 import {
   buildFrontmatter,
@@ -37,9 +41,13 @@ describe('slugForPage', () => {
 
 describe('renderFilename', () => {
   it('expands tokens and appends .md', () => {
-    expect(renderFilename('{date}-{slug}', { title: 'My Post', url: 'https://ex.com', date: DATE })).toBe(
-      '2026-08-14-my-post.md',
-    );
+    expect(
+      renderFilename('{date}-{slug}', {
+        title: 'My Post',
+        url: 'https://ex.com',
+        date: DATE,
+      }),
+    ).toBe('2026-08-14-my-post.md');
   });
 
   it('keeps template slashes as folders', () => {
@@ -53,15 +61,23 @@ describe('renderFilename', () => {
   });
 
   it('strips path separators coming from token values', () => {
-    expect(renderFilename('{title}.md', { title: 'a/b:c*d?e"f<g>h|i', url: 'https://x.com', date: DATE })).toBe(
-      'a-b-c-d-e-f-g-h-i.md',
-    );
+    expect(
+      renderFilename('{title}.md', {
+        title: 'a/b:c*d?e"f<g>h|i',
+        url: 'https://x.com',
+        date: DATE,
+      }),
+    ).toBe('a-b-c-d-e-f-g-h-i.md');
   });
 
   it('leaves unknown tokens alone', () => {
-    expect(renderFilename('{nope}-{slug}.md', { title: 'x', url: 'https://x.com', date: DATE })).toBe(
-      '{nope}-x.md',
-    );
+    expect(
+      renderFilename('{nope}-{slug}.md', {
+        title: 'x',
+        url: 'https://x.com',
+        date: DATE,
+      }),
+    ).toBe('{nope}-x.md');
   });
 });
 
@@ -120,7 +136,11 @@ describe('stripFrontmatter / composeDocument', () => {
   });
 
   it('emits exactly one frontmatter block plus the note quote', () => {
-    const doc = composeDocument('---\ntitle: "t"\n---', '---\ntitle: old\n---\n\n# Body', 'read later');
+    const doc = composeDocument(
+      '---\ntitle: "t"\n---',
+      '---\ntitle: old\n---\n\n# Body',
+      'read later',
+    );
     expect(doc.match(/^---$/gm)).toHaveLength(2);
     expect(doc).toContain('> read later');
     expect(doc.endsWith('# Body\n')).toBe(true);

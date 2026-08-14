@@ -1,9 +1,9 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import { getBackend } from './backends';
-import {
-  buildFrontmatter,
-  composeDocument,
-  renderFilename,
-} from './markdown';
+import { buildFrontmatter, composeDocument, renderFilename } from './markdown';
 import type { SaveRecord, SaveRequest } from './messages';
 import { hasOrigin } from './permissions';
 import { backendOrigin, configErrors, getSettings } from './settings';

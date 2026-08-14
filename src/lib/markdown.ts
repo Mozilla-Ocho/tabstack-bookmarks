@@ -1,9 +1,13 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
 import type { PageMetadata } from './tabstack';
 
 export function slugify(input: string, max = 60): string {
   const slug = input
     .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/['"’]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
@@ -33,7 +37,10 @@ export function hostOf(url: string): string {
 
 /** Strips path separators and characters that break Windows/macOS filenames. */
 function sanitizeSegment(value: string): string {
-  return value.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim();
+  return value
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export interface FilenameVars {
