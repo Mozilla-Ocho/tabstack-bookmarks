@@ -30,8 +30,11 @@ const MENU_LINK = 'tabstack-save-link';
 const IMPORT_ALARM = 'tabstack-import-resume';
 
 export default defineBackground(() => {
-  browser.runtime.onInstalled.addListener(() => {
+  browser.runtime.onInstalled.addListener((details) => {
     void createMenus();
+    // Nothing works without an API key, so a fresh install lands on the options
+    // page rather than on a toolbar button that only errors.
+    if (details.reason === 'install') void browser.runtime.openOptionsPage();
   });
   // Event pages restart; menus are cheap to (re)create defensively.
   void createMenus();

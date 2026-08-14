@@ -11,6 +11,9 @@ export default defineConfig({
     name: 'Tabstack Bookmarks',
     description:
       'Bookmark pages as markdown. Tabstack extracts the page, your storage keeps it.',
+    // MV3's `author` is { email } — left out rather than publishing a personal
+    // address; the store listings carry developer identity anyway.
+    homepage_url: 'https://github.com/JustSteveKing/tabstack-bookmarks',
     permissions: [
       'storage',
       'activeTab',
@@ -26,9 +29,17 @@ export default defineConfig({
     ],
     // Firefox MV3 treats these as opt-in: the options page asks for them at runtime.
     host_permissions: ['https://api.tabstack.ai/*', 'https://api.github.com/*'],
-    // The Obsidian destination is user-supplied (host and port), so its origin
-    // is requested from the options page once it is configured.
-    optional_host_permissions: ['*://*/*'],
+    // The Obsidian destination is user-supplied, but in practice the plugin runs
+    // on this machine. Keeping the optional set to loopback rather than "*://*/*"
+    // means store reviewers (and users) are not asked to trust an all-sites
+    // extension for a localhost feature. A vault behind a different host needs
+    // the pattern added here.
+    optional_host_permissions: [
+      'http://127.0.0.1/*',
+      'http://localhost/*',
+      'https://127.0.0.1/*',
+      'https://localhost/*',
+    ],
     commands: {
       'save-page': {
         suggested_key: { default: 'Alt+Shift+S' },

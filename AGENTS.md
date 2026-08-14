@@ -126,8 +126,11 @@ Notes from doing this the hard way:
 - `pnpm dev:firefox` prints "load manually" on this machine and serves pages from the HMR
   server, which muddies what you are verifying. For anything visual, test the production
   build via `web-ext run`.
-- Current Chrome (151 when this was written) silently ignores `--load-extension`, so
-  headless Chrome cannot be driven this way at all.
+- Current Chrome (151 when this was written) silently ignores `--load-extension`. Launch
+  it with `--enable-unsafe-extension-debugging --remote-debugging-port=9333` and load the
+  build over CDP instead: `Extensions.loadUnpacked { path }` returns the extension id, and
+  from there `Target.createTarget` on `chrome-extension://<id>/options.html` behaves like
+  any page — which is how the Chrome save, download and import paths were verified.
 - Extension pages are privileged: BiDi refuses to navigate to them, and only the parent
   process can open one in a tab.
 - Size the window *after* attaching to the tab, or screenshots come out 300px wide.
@@ -147,6 +150,15 @@ Notes from doing this the hard way:
   a test fixture, or a commit message.
 - Commit messages: prose that explains why, wrapped at ~80 columns. No
   `Co-Authored-By` trailers, no emoji, no "generated with" footers.
+
+## Shipping
+
+`RELEASING.md` has the release steps; `store/LISTING.md` holds the listing copy,
+permission justifications and store answers, and must be updated in the same change as
+any permission edit. `PRIVACY.md` is the published policy — if a change alters what
+leaves the machine or what is stored, that file changes too, and so does the
+`data_collection_permissions` declaration. Screenshots in `store/screenshots/` are
+generated from a real browser; regenerate rather than retouch.
 
 ## Deliberate omissions
 

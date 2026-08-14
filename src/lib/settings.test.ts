@@ -2,6 +2,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   backendOrigin,
+  isGrantableOrigin,
   configErrors,
   DEFAULT_SETTINGS,
   getSettings,
@@ -92,5 +93,19 @@ describe('backendOrigin', () => {
         obsidian: { ...DEFAULT_SETTINGS.obsidian, baseUrl: 'nope' },
       }),
     ).toBeNull();
+  });
+});
+
+describe('isGrantableOrigin', () => {
+  it('accepts loopback hosts, since that is all the manifest offers', () => {
+    expect(isGrantableOrigin('http://127.0.0.1:27123/*')).toBe(true);
+    expect(isGrantableOrigin('http://localhost:27123/*')).toBe(true);
+    expect(isGrantableOrigin('https://localhost/*')).toBe(true);
+  });
+
+  it('rejects hosts it could never obtain permission for', () => {
+    expect(isGrantableOrigin('http://vault.lan:27123/*')).toBe(false);
+    expect(isGrantableOrigin('https://example.com/*')).toBe(false);
+    expect(isGrantableOrigin('nonsense')).toBe(false);
   });
 });

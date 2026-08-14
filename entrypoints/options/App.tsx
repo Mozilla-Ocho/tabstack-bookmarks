@@ -14,6 +14,7 @@ import { listRecords } from '@/src/lib/saveStore';
 import { clearSaved, countSaved } from '@/src/lib/savedIndex';
 import {
   backendOrigin,
+  isGrantableOrigin,
   DEFAULT_SETTINGS,
   getSettings,
   setSettings,
@@ -90,6 +91,11 @@ export function App() {
     setDestNote(null);
     try {
       const s = settings!;
+      if (origin && !isGrantableOrigin(origin)) {
+        throw new Error(
+          `${origin} is not a loopback address, so this build cannot request access to it.`,
+        );
+      }
       if (origin && !(await hasOrigin(origin)) && !(await requestHostPermissions([origin]))) {
         throw new Error(`Access to ${origin} was not granted.`);
       }
@@ -225,7 +231,7 @@ export function App() {
             {busy === 'key' ? 'Testing…' : 'Test key'}
           </button>
           {keyNote && (
-            <span className={`status ${keyNote.kind === 'ok' ? 'ok' : 'err'}`}>
+            <span className={`status ${keyNote.kind === 'ok' ? 'ok' : 'err'}`} role="status" aria-live="polite">
               {keyNote.text}
             </span>
           )}
@@ -252,8 +258,8 @@ export function App() {
           </select>
         </div>
 
-        {!originGranted && origin && (
-          <div className="status err">
+        {!originGranted && origin && isGrantableOrigin(origin) && (
+          <div className="status err" role="status">
             The extension needs permission to reach <code>{origin}</code>.{' '}
             <button
               className="link"
@@ -261,6 +267,15 @@ export function App() {
             >
               Grant access
             </button>
+          </div>
+        )}
+
+        {origin && !isGrantableOrigin(origin) && (
+          <div className="status err" role="status">
+            <code>{origin}</code> is not a loopback address. This build can only be
+            granted access to <code>localhost</code> and <code>127.0.0.1</code>; a vault on
+            another machine needs its pattern added to{' '}
+            <code>optional_host_permissions</code> and a rebuild.
           </div>
         )}
 
@@ -400,7 +415,7 @@ export function App() {
               {busy === 'dest' ? 'Checking…' : 'Test destination'}
             </button>
             {destNote && (
-              <span className={`status ${destNote.kind === 'ok' ? 'ok' : 'err'}`}>
+              <span className={`status ${destNote.kind === 'ok' ? 'ok' : 'err'}`} role="status" aria-live="polite">
                 {destNote.text}
               </span>
             )}

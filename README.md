@@ -10,8 +10,9 @@ a paywall, rewritten, or gone, you still have it.
 Built with [WXT](https://wxt.dev), so one source tree builds for Firefox and Chrome
 (Edge and Safari targets are available but untested).
 
-> Status: works end to end, not yet published to AMO or the Chrome Web Store. Load it
-> unpacked for now.
+> Status: verified end to end against the live API in Firefox 153 and Chrome 151 —
+> saving, both browsers' download paths, AI summaries and bookmark import. Not yet
+> submitted to AMO or the Chrome Web Store; load it unpacked for now.
 
 ## Contents
 
@@ -283,6 +284,19 @@ each size so the bars stay crisp at 16px.
 - `onMessage` ignores returned promises, so the router replies through `sendResponse`.
 - `unlimitedStorage` is declared because the saved-URL index would otherwise share a 10 MB
   quota with everything else.
+
+## Releasing
+
+`RELEASING.md` covers the checks, version bump and both store submissions.
+`store/LISTING.md` holds the listing copy, permission justifications and the answers each
+store's review form asks for, and `store/screenshots/` the 1280×800 captures (generated
+from a real browser, not mocked up). CI runs typecheck, tests, both builds and
+`web-ext lint` on every push, and uploads the packaged Firefox zip as an artifact.
+
+## Privacy and licence
+
+[PRIVACY.md](PRIVACY.md) documents every byte that leaves your machine and everything
+stored on it. The extension is [MPL-2.0](LICENSE) licensed.
 
 ## Roadmap
 

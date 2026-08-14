@@ -106,6 +106,20 @@ export function configErrors(s: Settings): string[] {
  * Origin pattern the active backend needs at runtime. GitHub and Tabstack are
  * in the manifest; user-supplied endpoints have to be requested on demand.
  */
+/**
+ * Whether an origin can actually be granted at runtime. The manifest's optional
+ * host permissions are limited to loopback, so a vault on another machine needs
+ * its pattern added to wxt.config.ts and a rebuild.
+ */
+export function isGrantableOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin.replace('/*', '/'));
+    return hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]';
+  } catch {
+    return false;
+  }
+}
+
 export function backendOrigin(s: Settings): string | null {
   const raw = s.backend === 'obsidian' ? s.obsidian.baseUrl : null;
   if (!raw?.trim()) return null;

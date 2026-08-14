@@ -219,10 +219,17 @@ export function App() {
       {progress && progress.total > 0 && (
         <section>
           <h2>{running ? 'Importing' : progress.cancelled ? 'Cancelled' : 'Finished'}</h2>
-          <div className="bar">
+          <div
+            className="bar"
+            role="progressbar"
+            aria-valuenow={progress.index}
+            aria-valuemin={0}
+            aria-valuemax={progress.total}
+            aria-label="Bookmarks processed"
+          >
             <span style={{ width: `${percent}%` }} />
           </div>
-          <div className="counts">
+          <div className="counts" role="status" aria-live="polite">
             <span>
               <strong>
                 {progress.index}/{progress.total}

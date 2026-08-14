@@ -1,8 +1,18 @@
 {
   "name": "tabstack-bookmarks",
+  "version": "0.1.0",
+  "description": "Bookmark pages as markdown. Tabstack extracts the page, your storage keeps it.",
+  "license": "MPL-2.0",
   "private": true,
   "type": "module",
-  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JustSteveKing/tabstack-bookmarks.git"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
@@ -15,6 +25,10 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
   "devDependencies": {
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
@@ -22,9 +36,5 @@
     "typescript": "^7.0.2",
     "vitest": "^4.1.10",
     "wxt": "^0.21.4"
-  },
-  "dependencies": {
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
   }
 }

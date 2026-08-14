@@ -143,7 +143,11 @@ export function App() {
       )}
 
       {record && (
-        <div className={`status ${saved ? 'ok' : record.status === 'error' ? 'err' : 'busy'}`}>
+        <div
+          className={`status ${saved ? 'ok' : record.status === 'error' ? 'err' : 'busy'}`}
+          role="status"
+          aria-live="polite"
+        >
           {record.status === 'extracting' && 'Extracting markdown via Tabstack…'}
           {record.status === 'storing' && 'Storing markdown…'}
           {saved && (

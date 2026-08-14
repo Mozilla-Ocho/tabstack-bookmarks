@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # postinstall runs `wxt prepare`, which generates the types tsc needs.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm compile
+
+      - run: pnpm test
+
+      - run: pnpm build:firefox
+
+      - run: pnpm build
+
+      # Catches manifest problems that a successful build does not.
+      - run: pnpm dlx web-ext@latest lint --source-dir .output/firefox-mv3 --warnings-as-errors=false
+
+      - name: Package
+        run: pnpm zip:firefox
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firefox-package
+          path: |
+            .output/*-firefox.zip
+            .output/*-sources.zip
+          if-no-files-found: error
