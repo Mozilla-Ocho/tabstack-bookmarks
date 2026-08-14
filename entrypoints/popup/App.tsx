@@ -122,7 +122,10 @@ export function App() {
   return (
     <div className="popup">
       <header>
-        <h1>Save to Tabstack</h1>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          <h1>Save to Tabstack</h1>
+        </div>
         <span className="badge">{BACKENDS[settings.backend].shortLabel}</span>
       </header>
 

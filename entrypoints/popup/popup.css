@@ -1,5 +1,5 @@
 body {
-  width: 360px;
+  width: 372px;
 }
 
 .popup {
@@ -8,10 +8,29 @@ body {
 
 .popup header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.popup .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popup .brand-mark {
+  width: 18px;
+  height: 14px;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: url('/icon/mark.svg') center / contain no-repeat;
+  -webkit-mask: url('/icon/mark.svg') center / contain no-repeat;
+}
+
+.popup h1 {
+  font-size: 15px;
 }
 
 .popup footer {
@@ -26,17 +45,21 @@ body {
 }
 
 .badge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 2px 8px;
+  white-space: nowrap;
 }
 
 .summary {
   margin: 0 0 10px;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
   background: var(--panel);
   font-size: 12px;
   line-height: 1.5;

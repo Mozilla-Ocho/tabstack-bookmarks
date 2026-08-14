@@ -1,15 +1,16 @@
 .bar {
   height: 8px;
-  border-radius: 4px;
-  background: var(--border);
+  border-radius: 100px;
+  background: light-dark(rgb(16 16 15 / 0.08), rgb(255 255 255 / 0.12));
   overflow: hidden;
-  margin: 10px 0 6px;
+  margin: 12px 0 8px;
 }
 
 .bar > span {
   display: block;
   height: 100%;
-  background: var(--accent);
+  border-radius: 100px;
+  background: var(--accent-fill);
   transition: width 200ms linear;
 }
 

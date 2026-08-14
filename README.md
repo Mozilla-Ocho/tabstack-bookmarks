@@ -124,6 +124,27 @@ First run: open the options page, paste the Tabstack API key, pick a destination
 - `pnpm dlx web-ext lint -s .output/firefox-mv3` is clean apart from two
   `UNSAFE_VAR_ASSIGNMENT` notices inside React's own bundle.
 
+## Theming
+
+The extension's pages use the Tabstack brand surface, mirroring the tokens in
+`tabstack-api-docs/theme.css` rather than inventing a second palette:
+
+- **Accent** `#ff97ea`. Accent *fills* (primary buttons, progress bar) keep the raw
+  pink with near-black text, the way the site's CTAs do. Accent *text* — links, focus
+  rings — uses `oklch(from … calc(l * 0.7) calc(c * 1.2) h)` in light mode, because raw
+  pink on white fails contrast.
+- **Greys** are a neutral hue-0 ramp on `#fff` / `#0a0a0a`. No blue-tinted greys.
+- **Type** is Mozilla Headline for headings and Mozilla Text for UI text, both bundled
+  as variable woff2 from `public/fonts` (~87 KB total, self-hosted — extension pages
+  never fetch a remote font). The site pairs Mozilla Headline with Geist; Geist is not
+  vendored here, so Mozilla Text carries body copy instead.
+- Light and dark come from one token set via CSS `light-dark()` (Firefox 120+,
+  Chrome 123+) plus `color-scheme`, so there is no duplicated dark block.
+- The mark in each page header is `icon/mark.svg` used as a CSS `mask` over
+  `currentColor`, so it inverts with the theme instead of needing two assets.
+
+Tokens live in `src/ui/style.css`; per-page layout is in each entrypoint's own CSS.
+
 ## Icons
 
 `scripts/make-icons.mjs` draws the Tabstack mark (four offset bars on a 2×4 grid) from

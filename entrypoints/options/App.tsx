@@ -118,7 +118,10 @@ export function App() {
   return (
     <div className="options">
       <header>
-        <h1>Tabstack Bookmarks</h1>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          <h1>Tabstack Bookmarks</h1>
+        </div>
         <p className="help">
           Tabstack turns the page into markdown. The markdown is written only to the
           destination you configure here.

@@ -1,17 +1,35 @@
 .options {
-  max-width: 620px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 28px 20px 60px;
+  padding: 32px 20px 60px;
 }
 
 .options > header {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+/* The mark is a single-colour glyph, so mask it with currentColor instead of
+   shipping a light and a dark PNG. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.brand-mark {
+  width: 24px;
+  height: 19px;
+  flex: 0 0 auto;
+  background: currentColor;
+  mask: url('/icon/mark.svg') center / contain no-repeat;
+  -webkit-mask: url('/icon/mark.svg') center / contain no-repeat;
 }
 
 .options section {
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
+  border-radius: var(--radius);
+  padding: 18px;
   margin-bottom: 16px;
   background: var(--panel);
 }
@@ -29,29 +47,33 @@
 .options > .actions {
   position: sticky;
   bottom: 0;
-  padding: 12px 0;
+  z-index: 1;
+  padding: 14px 0;
+  margin-top: -1px;
   background: var(--bg);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -12px 16px -12px light-dark(rgb(16 16 15 / 0.18), rgb(0 0 0 / 0.6));
 }
 
 .options code {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: light-dark(rgb(16 16 15 / 0.06), rgb(255 255 255 / 0.08));
   border-radius: 4px;
-  padding: 0 3px;
+  padding: 1px 4px;
 }
 
 .help {
   color: var(--muted);
   font-size: 11px;
-  margin: 4px 0 0;
+  margin: 5px 0 0;
+  line-height: 1.5;
 }
 
 kbd {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-bottom-width: 2px;
   border-radius: 4px;
   padding: 0 4px;
-  font-family: inherit;
+  font-family: var(--font-mono);
   font-size: 10px;
 }
 
@@ -63,9 +85,9 @@ kbd {
 
 .recent li {
   display: flex;
-  gap: 8px;
+  gap: 9px;
   align-items: flex-start;
-  padding: 8px 0;
+  padding: 9px 0;
   border-top: 1px solid var(--border);
 }
 
@@ -80,6 +102,7 @@ kbd {
 
 .recent strong {
   font-size: 12px;
+  font-weight: 535;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;

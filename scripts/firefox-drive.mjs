@@ -110,8 +110,6 @@ const url = `moz-extension://${extensionUuid(args.profile)}/${args.page}`;
 const { send, close } = await connect(MARIONETTE_PORT);
 
 try {
-  await send('WebDriver:SetWindowRect', { width: args.width, height: args.height });
-
   // Only the parent process may open a privileged page in a tab.
   await send('Marionette:SetContext', { value: 'chrome' });
   await send('WebDriver:ExecuteScript', {
@@ -151,6 +149,10 @@ try {
     if (!attached) await new Promise((r) => setTimeout(r, 250));
   }
   if (!attached) throw new Error(`${args.page} never rendered`);
+
+  // Size the window once a tab is attached; doing it earlier is racy.
+  await send('WebDriver:SetWindowRect', { width: args.width, height: args.height });
+  await new Promise((r) => setTimeout(r, 400));
 
   if (args.body) {
     // ExecuteScript is sync-only, so wrap the body for await support.

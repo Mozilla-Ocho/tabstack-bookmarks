@@ -83,7 +83,10 @@ export function App() {
   return (
     <div className="options">
       <header>
-        <h1>Import existing bookmarks</h1>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true" />
+          <h1>Import existing bookmarks</h1>
+        </div>
         <p className="help">
           Every selected bookmark goes through Tabstack and lands in your configured
           destination — one API call per bookmark, so this costs credits. The run keeps
