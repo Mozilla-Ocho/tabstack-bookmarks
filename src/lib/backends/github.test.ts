@@ -91,6 +91,13 @@ describe('githubBackend.save', () => {
     expect(fetchMock.mock.calls[1][0]).toContain('bookmarks/2026/08/a%20b%20%26%20c.md');
   });
 
+  it('explains an unreachable GitHub', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('NetworkError'));
+    await expect(githubBackend.save(payload, settings)).rejects.toThrow(
+      /Could not reach api\.github\.com/,
+    );
+  });
+
   it('explains a rejected token', async () => {
     fetchMock.mockResolvedValueOnce(json(401, { message: 'Bad credentials' }));
     await expect(githubBackend.save(payload, settings)).rejects.toThrow(
@@ -113,6 +120,11 @@ describe('verifyGitHub', () => {
       json(200, { full_name: 'me/notes', default_branch: 'main', permissions: { push: false } }),
     );
     await expect(verifyGitHub(settings.github)).rejects.toThrow(/cannot write to me\/notes/);
+  });
+
+  it('explains an unreachable GitHub', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('NetworkError'));
+    await expect(verifyGitHub(settings.github)).rejects.toThrow(/Could not reach api\.github\.com/);
   });
 
   it('reports the default branch on success', async () => {

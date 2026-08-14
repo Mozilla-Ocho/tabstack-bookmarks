@@ -1,187 +1,292 @@
 # Tabstack Bookmarks
 
-A bookmark manager that saves *content*, not just URLs. Click the toolbar icon and the
-page goes to the [Tabstack](https://tabstack.ai) API, comes back as clean markdown, and
-is written to a destination **you** configure. The extension is only a pipe — nothing is
-stored on Tabstack's side beyond the extraction request, and no third-party sync service
-is involved.
+A bookmark manager that keeps the page, not just the link.
 
-Built with [WXT](https://wxt.dev), so the same source builds for Firefox, Chrome, Edge
-and Safari.
+Click the toolbar icon and the current tab goes to the [Tabstack](https://tabstack.ai)
+API, comes back as clean markdown, and is written to a destination **you** choose — a
+local folder, a GitHub repo, or an Obsidian vault. A year later, when the page is behind
+a paywall, rewritten, or gone, you still have it.
+
+Built with [WXT](https://wxt.dev), so one source tree builds for Firefox and Chrome
+(Edge and Safari targets are available but untested).
+
+> Status: works end to end, not yet published to AMO or the Chrome Web Store. Load it
+> unpacked for now.
+
+## Contents
+
+- [How it works](#how-it-works) · [Install](#install) · [First run](#first-run)
+- [Saving a page](#saving-a-page) · [What gets written](#what-gets-written)
+- [Destinations](#destinations) · [Summaries](#summaries) · [Import](#importing-bookmarks-you-already-have)
+- [Settings](#settings) · [Privacy](#privacy) · [Development](#development)
 
 ## How it works
 
-1. `POST https://api.tabstack.ai/v1/extract/markdown` with the tab URL (Bearer API key).
-2. Optionally `POST /v1/generate/json` in parallel for a summary, key points and tag
-   suggestions (see *Summaries* below).
-3. Compose a document: YAML frontmatter (title, url, saved_at, description, author,
-   publisher, site_name, image, tags, note, summary) + a `## Key points` section +
-   the extracted markdown body.
-4. Hand the document to the configured storage backend.
+1. `POST https://api.tabstack.ai/v1/extract/markdown` with the tab's URL and your API key.
+2. Optionally, in parallel, `POST /v1/generate/json` for a summary, key points and
+   suggested tags.
+3. Compose a document: YAML frontmatter, an optional `## Key points` section, then the
+   extracted markdown.
+4. Hand it to the configured storage backend.
 
-## Storage backends
+Nothing is stored by the extension beyond your settings and a local index of which URLs
+you have saved. There is no account, no sync service, and no server of ours in the middle.
 
-| Backend | What it does | Setup |
-| --- | --- | --- |
-| **Local folder** | Writes `<download dir>/<folder>/<file>.md` via the downloads API | Set a subfolder. Browsers can only write inside the download directory — point the browser download folder at an Obsidian vault (or symlink it) to land notes there. |
-| **GitHub repo** | Commits the file via the GitHub contents API | Fine-grained PAT with `Contents: read and write`, plus owner/repo/branch/folder. |
-| **Obsidian vault** | `PUT /vault/<path>` on the Local REST API plugin | Plugin installed and Obsidian running. Use its **HTTP** port (default 27123) — the HTTPS port's self-signed cert is rejected by extensions. |
-
-Duplicate handling: GitHub and Obsidian probe for an existing file and append `-1`,
-`-2`, … unless you tick *overwrite the same file*; downloads use the browser's
-`uniquify`.
-
-Adding another backend is one file: implement `StorageBackend` in
-`src/lib/backends/`, register it in `src/lib/backends/index.ts`, add its id to
-`BackendId` in `src/lib/settings.ts`, and add its fields to the options page.
-
-## Summaries
-
-Turn on *Generate an AI summary* in the options (off by default — it is a second API call
-per save, so it doubles credit use). Each save then also calls `/generate/json` with a
-fixed schema asking for `summary`, `key_points` and `tags`. The summary goes into the
-frontmatter, the key points become a `## Key points` section above the article, and the
-suggested tags are merged into the bookmark's tags unless you turn that off.
-
-The summary call runs **alongside** the markdown extraction, not after it, and a failed
-summary never loses the markdown — the save completes and the record carries a
-`summaryError`. The popup has a per-save *Summarize with AI* checkbox that overrides the
-setting for one save.
-
-## Importing existing bookmarks
-
-Options → *Open bookmark import*, or `import.html` directly. Pick a folder (with live
-counts), then:
-
-- **Skip already saved** — leaves out URLs the extension has saved successfully before.
-- **Stop after N** — try 5–10 first to see the output before spending credits on a
-  thousand bookmarks.
-- **Folder names as tags** — `Toolbar/Reading` becomes tags `Toolbar`, `Reading`.
-- **Pause between bookmarks** — 0.5s / 1.5s / 4s.
-
-"Already saved" is answered from a durable per-URL index (`savedIndex.ts`), not the
-30-record UI history — otherwise a 1,000 bookmark import would forget all but the last 30
-and re-save them (and re-spend credits) on the next run. It also means a page saved months
-ago still shows as saved in the popup, with *Re-save* updating the same file. Options →
-*Forget saved history* clears the index without touching your files.
-
-The queue lives in the background, one bookmark at a time, and survives closing the tab
-or the event page being suspended (progress is persisted after every item and a 1-minute
-alarm resumes it). Rate-limited items retry with 5s/15s/45s backoff; a 401 or 402 stops
-the whole run and says why. Duplicate URLs across folders are saved once.
-
-## Develop
+## Install
 
 ```bash
 pnpm install
-pnpm dev:firefox     # launches Firefox with the extension loaded, HMR on
-pnpm dev             # same for Chrome
-pnpm test            # vitest (103 tests: markdown, settings, backends, save flow, bookmarks, import queue, saved index)
-pnpm compile         # tsc --noEmit
-pnpm build:firefox   # .output/firefox-mv3
-pnpm zip:firefox     # distributable zip (+ sources zip for AMO)
+pnpm build:firefox     # → .output/firefox-mv3
+pnpm build             # → .output/chrome-mv3
 ```
 
-Tests run through `WxtVitest`, which provides `#imports` and an in-memory
-`fakeBrowser`, so storage and settings are exercised for real and only `fetch` is
-stubbed.
+**Firefox** — `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* → pick
+`.output/firefox-mv3/manifest.json`. Temporary add-ons are removed when Firefox restarts;
+`pnpm zip:firefox` produces the AMO upload (plus a sources zip) when you want a signed
+install.
 
-Manual load in Firefox: `about:debugging#/runtime/this-firefox` → *Load Temporary
-Add-on* → pick `.output/firefox-mv3/manifest.json`.
+**Chrome** — `chrome://extensions` → *Developer mode* → *Load unpacked* →
+`.output/chrome-mv3`.
+
+Requires Node 22.12+ and pnpm. Firefox 142+ (see [Browser notes](#browser-notes)).
+
+## First run
+
+Open the extension's options page:
+
+1. Paste your Tabstack API key, then click **Test key** — it does one cheap real request
+   so you find out now rather than mid-save.
+2. On Firefox you may see a banner asking to grant access to `api.tabstack.ai`. Click
+   **Grant access**; Firefox requires a click for this and cannot be pre-approved.
+3. Pick a destination and click **Test destination**.
+4. **Save settings**.
+
+## Saving a page
+
+- **Toolbar icon** → the popup opens and starts saving immediately (turn that off if you
+  prefer to review first). Edit title, tags or a note, then **Re-save** to update the
+  same file.
+- <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> → save the active tab with no popup.
+- **Right-click** a page or a link → *Save … to Tabstack*. Saving a link never opens it.
+
+A page you saved months ago still shows as saved when you reopen the popup, and
+**Re-save** overwrites that same file instead of making a second copy.
+
+Only `http` and `https` pages can be saved — the API has to be able to fetch the URL, so
+local files and `about:` pages are rejected up front rather than failing later.
+
+## What gets written
+
+```markdown
+---
+title: "Example Domain"
+url: "https://example.com/"
+saved_at: "2026-08-14T20:28:03.254Z"
+tags:
+  - "imported"
+  - "Reading"
+source: tabstack
+---
+
+This domain is for use in documentation examples without needing permission…
+```
+
+Frontmatter carries whatever the page actually provided — `description`, `author`,
+`publisher`, `site_name`, `image`, `type` are included when present and omitted when not,
+so you never get empty keys. Your `note` and the AI `summary` join them when set. Any
+frontmatter the extraction itself produced is stripped, so the document has exactly one
+block.
+
+Filenames come from a template. Tokens: `{date}` `{yyyy}` `{mm}` `{dd}` `{slug}`
+`{title}` `{host}`. Slashes create folders, so `{yyyy}/{mm}/{slug}.md` gives you a dated
+tree. Token values are sanitised — a page titled `a/b:c` cannot escape into another
+directory.
+
+## Destinations
+
+| Destination | How it writes | What you need |
+| --- | --- | --- |
+| **Local folder** | Browser downloads API, into `<download dir>/<subfolder>/` | Nothing. Browsers can only write inside the download directory, so point Firefox's download folder at your vault (or symlink it) if you want notes to land in Obsidian. |
+| **GitHub repo** | Commit via the contents API | A fine-grained token with `Contents: read and write`, plus owner, repo, branch and folder. |
+| **Obsidian vault** | `PUT /vault/<path>` on the Local REST API plugin | The plugin enabled with Obsidian running. Use its **HTTP** port (default 27123) — the HTTPS port's self-signed certificate is rejected by extensions. |
+
+Duplicates: GitHub and Obsidian check whether the path is taken and append `-1`, `-2`, …
+unless you asked to overwrite; downloads use the browser's own uniquify.
+
+## Summaries
+
+Off by default, because it is a second API call per save and therefore doubles credit use.
+When on, each save also asks `/generate/json` for a `summary`, three-to-five
+`key_points`, and topic `tags`. The summary goes in the frontmatter, the key points become
+a `## Key points` section above the article, and suggested tags are merged into the
+bookmark's tags (that part is separately switchable).
+
+The summary runs *alongside* extraction rather than after it, and it can never cost you
+the page: if the summary call fails, the save still completes and the record notes why.
+The popup has a per-save **Summarize with AI** checkbox that overrides the setting once.
+
+## Importing bookmarks you already have
+
+Options → **Open bookmark import**. Pick a folder (each shows how many saveable bookmarks
+it holds), then:
+
+- **Skip already saved** — leaves out URLs saved before.
+- **Stop after N** — try 5–10 first and look at the output before spending credits on a
+  thousand pages.
+- **Folder names as tags** — `Toolbar/Reading` becomes tags `Toolbar` and `Reading`.
+- **Pause between bookmarks** — 0.5s / 1.5s / 4s.
+
+The run lives in the background: close the tab, keep browsing, it carries on one bookmark
+at a time. Progress is written after every item and a one-minute alarm resumes the queue
+if the browser suspended the extension, so a long import survives interruption.
+Rate-limited pages retry with 5s/15s/45s backoff; running out of credits or a rejected key
+stops the whole run and tells you which. Duplicate URLs across folders are saved once,
+and non-web bookmarks (`javascript:`, `place:`) are skipped.
+
+"Already saved" is answered from a durable per-URL index, not the 30-entry list the UI
+shows. That distinction matters: with only the visible history, a 1,000-bookmark import
+would remember the last 30 and re-save — and re-charge for — everything else next time.
+Options → **Forget saved history** clears the index; your files are untouched.
+
+## Settings
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| API key | — | Stored in extension local storage on this device. Never synced. |
+| Fetch effort | `standard` | `min` 1–5s, `standard` 3–15s, `max` full browser render 15–60s for JS-heavy pages. |
+| Content scope | `main` | `main` is the article; `full` includes nav, footer and links. |
+| Bypass cache | off | Forces Tabstack to refetch instead of serving a cached extraction. |
+| AI summary | off | Second API call per save. |
+| Use suggested tags | on | Only applies when summaries are on. |
+| Filename template | `{date}-{slug}.md` | Slashes create folders. |
+| Tags on every bookmark | — | Merged ahead of per-save tags. |
+| Auto-save on popup open | on | Turn off to review before spending a call. |
+| Destination | Local folder | Plus that destination's own fields. |
+
+## Privacy
+
+- The page URL goes to `api.tabstack.ai`, which fetches and converts it. That is the one
+  outbound call the extension makes on your behalf; the manifest declares it to Firefox as
+  `data_collection_permissions: ["websiteContent"]`.
+- The markdown goes only to the destination you configured — your download folder, your
+  repo, your vault. Credentials for those live in extension local storage and are sent
+  only to that destination.
+- No analytics, no telemetry, no error reporting, no remote fonts or CDN assets. The two
+  brand fonts are bundled in the package.
+- Local state: settings, the last 30 save records (for the UI), the durable saved-URL
+  index, and an import job while one is running. All in `browser.storage.local`, all
+  removable — uninstalling takes it with you.
+
+## Development
+
+```bash
+pnpm install
+pnpm dev:firefox     # Firefox with HMR
+pnpm dev             # Chrome with HMR
+pnpm test            # vitest — 103 tests
+pnpm compile         # tsc --noEmit
+pnpm build:firefox   # production build
+pnpm zip:firefox     # AMO package + sources zip
+```
+
+Tests run through `WxtVitest`, which supplies `#imports` and an in-memory `fakeBrowser`.
+Storage, settings and the import queue are exercised for real; only `fetch` is stubbed.
+
+### Layout
+
+```
+entrypoints/
+  background.ts     message router, keyboard command, context menus, badge, notifications
+  popup/            one-click save, editable title/tags/note
+  options/          API key, destination, filename template, recent saves
+  import/           bulk import of existing bookmarks
+src/lib/
+  tabstack.ts       /extract/markdown + /generate/json clients, error mapping
+  save.ts           extract → compose → store orchestration
+  markdown.ts       slugs, filename templates, frontmatter
+  settings.ts       schema, defaults, validation, backend origins
+  saveStore.ts      30-record UI history + the single final-write path
+  savedIndex.ts     durable url → {path, backend, savedAt} index, one key per URL
+  bookmarks.ts      bookmark tree → flat saveable items, folder counts
+  importQueue.ts    persisted import job: retry, backoff, cancel, resume
+  permissions.ts    runtime host-permission checks
+  backends/         download.ts, github.ts, obsidian.ts, types.ts
+scripts/
+  make-icons.mjs    generates icons from the brand mark's geometry
+  firefox-drive.mjs drives a real Firefox over Marionette
+```
 
 ### Driving a real Firefox
 
-`scripts/firefox-drive.mjs` opens the extension's own pages in a running Firefox and
-runs code inside them, which is how the options page, the save pipeline and the import
-queue were verified against the live API. WebDriver BiDi refuses to navigate to
-`moz-extension://` URLs, so the script uses Marionette's chrome context. Its header has
-the exact `web-ext run` invocation; then:
+`scripts/firefox-drive.mjs` opens the extension's own pages in a running Firefox and runs
+code inside them — how the options page, the save pipeline and the import queue were
+verified against the live API. WebDriver BiDi refuses to navigate to `moz-extension://`
+URLs, so it uses Marionette's chrome context instead. The script header has the exact
+`web-ext run` invocation; then:
 
 ```bash
 node scripts/firefox-drive.mjs options.html --shot=/tmp/options.png
 node scripts/firefox-drive.mjs import.html --eval="return document.title"
 ```
 
-`--eval` runs in the extension page, so `browser.*` is available and the body can await.
+`--eval` runs inside the extension page, so `browser.*` is available and the body may
+await.
 
-First run: open the options page, paste the Tabstack API key, pick a destination, hit
-**Test key** / **Test repo access**.
+### Adding a destination
 
-## Firefox notes
+Four touch points: implement `StorageBackend` in `src/lib/backends/`, register it in
+`src/lib/backends/index.ts`, add its id to `BackendId` and its fields to `Settings` in
+`src/lib/settings.ts` (defaults *and* the deep merge in `getSettings`), then add its
+fieldset to the options page. If it talks to a user-supplied host, extend
+`backendOrigin()` so its origin gets requested at runtime.
 
-- MV3 on Firefox uses an **event page**, not a service worker — the background script can
-  be unloaded between saves, so all state lives in `browser.storage.local`
-  (`src/lib/saveStore.ts`), never in module scope.
-- Firefox treats `host_permissions` as **opt-in**. The options page detects this and shows
-  a *Grant access* button (must be a user gesture) before the first save can reach
-  `api.tabstack.ai`.
-- The Obsidian destination is user-supplied (host and port), so its origin is requested
-  on demand out of `optional_host_permissions: ["*://*/*"]`. `runSave` refuses to start
-  when that origin is not granted, instead of failing mid-flight with a CORS error.
-- `data_collection_permissions: ["websiteContent"]` is declared in the manifest, which AMO
-  requires for new extensions. That key only exists in Firefox 142+, so
-  `strict_min_version` is `142.0`; lower it (and drop the key) if you need older Firefox.
+### Theming
+
+Brand tokens live in `src/ui/style.css`, mirroring `tabstack-api-docs/theme.css` rather
+than inventing a second palette:
+
+- Accent `#ff97ea`. Accent *fills* keep the raw pink with near-black text, matching the
+  marketing CTAs; accent *text* and focus rings use the darkened
+  `oklch(from … calc(l * 0.7) calc(c * 1.2) h)` variant in light mode, where raw pink on
+  white fails contrast.
+- A neutral hue-0 grey ramp on `#fff` / `#0a0a0a` — no blue-tinted greys.
+- Mozilla Headline for headings, Mozilla Text for UI text, bundled as variable woff2
+  (~87 KB). The site pairs Headline with Geist, which is not vendored anywhere locally.
+- One token set for both schemes via CSS `light-dark()` plus `color-scheme`.
+- The mark in each header is `icon/mark.svg` as a CSS `mask` over `currentColor`, so it
+  inverts with the theme rather than needing two assets.
+
+Icons are generated, not hand-drawn: `node scripts/make-icons.mjs` draws the mark (four
+offset bars on a 2×4 grid) from the wordmark's rect geometry, snapped to integer pixels at
+each size so the bars stay crisp at 16px.
+
+## Browser notes
+
+**Firefox**
+
+- MV3 uses an **event page**, not a service worker: the background can be unloaded between
+  saves, so no state lives in module scope — it is all in `browser.storage.local`.
+- `host_permissions` are opt-in. The options page detects and requests them; a click is
+  required and cannot be skipped.
+- The Obsidian host and port are user-supplied, so that origin is requested on demand from
+  `optional_host_permissions`. A save refuses to start when it has not been granted,
+  instead of failing halfway with an opaque network error.
+- `data_collection_permissions` requires Firefox 142+, hence `strict_min_version: 142.0`.
+  Drop the key to support older releases.
 - `pnpm dlx web-ext lint -s .output/firefox-mv3` is clean apart from two
-  `UNSAFE_VAR_ASSIGNMENT` notices inside React's own bundle.
+  `UNSAFE_VAR_ASSIGNMENT` notices from React's own bundle.
 
-## Theming
+**Chrome**
 
-The extension's pages use the Tabstack brand surface, mirroring the tokens in
-`tabstack-api-docs/theme.css` rather than inventing a second palette:
-
-- **Accent** `#ff97ea`. Accent *fills* (primary buttons, progress bar) keep the raw
-  pink with near-black text, the way the site's CTAs do. Accent *text* — links, focus
-  rings — uses `oklch(from … calc(l * 0.7) calc(c * 1.2) h)` in light mode, because raw
-  pink on white fails contrast.
-- **Greys** are a neutral hue-0 ramp on `#fff` / `#0a0a0a`. No blue-tinted greys.
-- **Type** is Mozilla Headline for headings and Mozilla Text for UI text, both bundled
-  as variable woff2 from `public/fonts` (~87 KB total, self-hosted — extension pages
-  never fetch a remote font). The site pairs Mozilla Headline with Geist; Geist is not
-  vendored here, so Mozilla Text carries body copy instead.
-- Light and dark come from one token set via CSS `light-dark()` (Firefox 120+,
-  Chrome 123+) plus `color-scheme`, so there is no duplicated dark block.
-- The mark in each page header is `icon/mark.svg` used as a CSS `mask` over
-  `currentColor`, so it inverts with the theme instead of needing two assets.
-
-Tokens live in `src/ui/style.css`; per-page layout is in each entrypoint's own CSS.
-
-## Icons
-
-`scripts/make-icons.mjs` draws the Tabstack mark (four offset bars on a 2×4 grid) from
-the wordmark's rect geometry, on integer pixel boundaries per size rather than
-downscaling one large PNG, so the bars stay crisp at 16px. Ink `#101018` on white,
-mark at 70% of the tile — matching the official `icon-512x512.png`. It also emits
-`public/icon/mark.svg`.
-
-## Layout
-
-```
-entrypoints/
-  background.ts        message router, keyboard command, context menus, badge, notifications
-  popup/               one-click save + editable title/tags/note
-  options/             API key, destination config, filename template, recent saves
-  import/              bulk import of existing browser bookmarks
-src/lib/
-  tabstack.ts          /extract/markdown + /generate/json clients, error mapping
-  save.ts              extract → compose → store orchestration
-  markdown.ts          slugs, filename templates, frontmatter
-  settings.ts          settings schema, defaults, validation, backend origins
-  saveStore.ts         30-record UI history + final-write helper
-  savedIndex.ts        durable url → {path, backend, savedAt} index, one key per URL
-  bookmarks.ts         bookmark tree → flat saveable items, folder counts
-  importQueue.ts       persisted import job: retry, backoff, cancel, resume
-  permissions.ts       runtime host-permission checks
-  backends/            download.ts, github.ts, obsidian.ts, types.ts
-```
-
-## Shortcuts
-
-- Toolbar click → popup (auto-saves on open unless turned off).
-- <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> → save the active tab, no popup.
-- Right-click a page or a link → *Save … to Tabstack*.
+- Background is a service worker, where `URL.createObjectURL` does not exist; the download
+  backend detects that and falls back to a data URL.
+- `onMessage` ignores returned promises, so the router replies through `sendResponse`.
+- `unlimitedStorage` is declared because the saved-URL index would otherwise share a 10 MB
+  quota with everything else.
 
 ## Roadmap
 
-- Search across saved items; re-extract stale bookmarks.
-- Two-way sync: notice when a saved page changed and offer to refresh it.
-- Per-folder destination rules (e.g. work bookmarks to one repo, personal to the vault).
+- Search across saved items; re-extract stale ones.
+- Notice when a saved page has changed and offer to refresh it.
+- Per-folder destination rules — work bookmarks to a repo, personal to the vault.
+- S3/R2 and WebDAV destinations.

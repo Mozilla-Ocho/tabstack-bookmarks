@@ -13,6 +13,17 @@ function headers(token: string): HeadersInit {
   };
 }
 
+/** fetch rejects with a TypeError when the request never reached GitHub. */
+function reachError(error: unknown): Error {
+  if (error instanceof TypeError) {
+    return new Error(
+      `Could not reach api.github.com. Check your connection, and that the extension has ` +
+        `permission to reach it. (${error.message})`,
+    );
+  }
+  return error instanceof Error ? error : new Error(String(error));
+}
+
 async function errorFrom(res: Response, fallback: string): Promise<Error> {
   let message = '';
   try {
@@ -72,45 +83,56 @@ export const githubBackend: StorageBackend = {
   shortLabel: 'GitHub',
 
   async save(payload: SavePayload, settings: Settings): Promise<SaveResult> {
-    const cfg = settings.github;
-    const wanted = joinPath(cfg.folder, payload.path);
-    const path = payload.overwrite ? wanted : await freePath(cfg, wanted);
-    const sha = payload.overwrite ? await getSha(cfg, path) : null;
-
-    const res = await fetch(
-      `${API}/repos/${cfg.owner}/${cfg.repo}/contents/${encodePath(path)}`,
-      {
-        method: 'PUT',
-        headers: headers(cfg.token),
-        body: JSON.stringify({
-          message: `${sha ? 'Update' : 'Add'} bookmark: ${payload.title || payload.url}`,
-          content: toBase64(payload.content),
-          branch: cfg.branch,
-          ...(sha ? { sha } : {}),
-        }),
-      },
-    );
-
-    if (!res.ok) throw await errorFrom(res, 'GitHub commit failed');
-
-    const json = (await res.json()) as {
-      content?: { html_url?: string };
-    };
-
-    return {
-      location: `${cfg.owner}/${cfg.repo}/${path}`,
-      link:
-        json.content?.html_url ??
-        `https://github.com/${cfg.owner}/${cfg.repo}/blob/${cfg.branch}/${path}`,
-    };
+    try {
+      return await commit(payload, settings);
+    } catch (error) {
+      throw reachError(error);
+    }
   },
 };
 
+async function commit(payload: SavePayload, settings: Settings): Promise<SaveResult> {
+  const cfg = settings.github;
+  const wanted = joinPath(cfg.folder, payload.path);
+  const path = payload.overwrite ? wanted : await freePath(cfg, wanted);
+  const sha = payload.overwrite ? await getSha(cfg, path) : null;
+
+  const res = await fetch(
+    `${API}/repos/${cfg.owner}/${cfg.repo}/contents/${encodePath(path)}`,
+    {
+      method: 'PUT',
+      headers: headers(cfg.token),
+      body: JSON.stringify({
+        message: `${sha ? 'Update' : 'Add'} bookmark: ${payload.title || payload.url}`,
+        content: toBase64(payload.content),
+        branch: cfg.branch,
+        ...(sha ? { sha } : {}),
+      }),
+    },
+  );
+
+  if (!res.ok) throw await errorFrom(res, 'GitHub commit failed');
+
+  const json = (await res.json()) as { content?: { html_url?: string } };
+
+  return {
+    location: `${cfg.owner}/${cfg.repo}/${path}`,
+    link:
+      json.content?.html_url ??
+      `https://github.com/${cfg.owner}/${cfg.repo}/blob/${cfg.branch}/${path}`,
+  };
+}
+
 /** Options-page connection check: can we read the repo and is it writable? */
 export async function verifyGitHub(cfg: GitHubSettings): Promise<string> {
-  const res = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}`, {
-    headers: headers(cfg.token),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API}/repos/${cfg.owner}/${cfg.repo}`, {
+      headers: headers(cfg.token),
+    });
+  } catch (error) {
+    throw reachError(error);
+  }
   if (!res.ok) throw await errorFrom(res, 'GitHub check failed');
   const repo = (await res.json()) as {
     full_name: string;
