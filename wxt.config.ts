@@ -49,6 +49,13 @@ export default defineConfig({
     },
     action: {
       default_title: 'Save to Tabstack',
+      // Pinned explicitly so the toolbar uses the pixel-snapped small sizes
+      // rather than downscaling the 128px icon.
+      default_icon: {
+        16: 'icon/16.png',
+        32: 'icon/32.png',
+        48: 'icon/48.png',
+      },
     },
   },
 });

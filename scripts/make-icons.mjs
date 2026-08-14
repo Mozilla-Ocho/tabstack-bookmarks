@@ -1,11 +1,29 @@
-// Generates the placeholder extension icons: an indigo tile with a white
-// bookmark glyph. Run with `node scripts/make-icons.mjs`.
+// Generates the extension icons from the Tabstack brand mark.
+//
+// The mark is four offset bars on a 2×4 grid, taken from the wordmark SVG used
+// on tabstack.ai (rect geometry: 108.932 × 42.3624 units per bar, mark bounds
+// 217.803 × 169.449). Proportions match the official icon-512x512.png: ink
+// #101018 on white, mark 70% of the tile width, optically centred.
+//
+// Drawn on integer pixel boundaries at every size instead of downscaling the
+// 512px PNG, so the bars stay crisp at 16px. Run: node scripts/make-icons.mjs
 import { deflateSync } from 'node:zlib';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
-const SIZES = [16, 32, 48, 96, 128];
-const BG = [79, 70, 229, 255];
-const FG = [255, 255, 255, 255];
+const SIZES = [16, 32, 48, 96, 128, 256];
+const INK = [16, 16, 24, 255];
+const PAPER = [255, 255, 255, 255];
+
+/** Bar cells as [column, row] on the 2-wide, 4-tall grid, top to bottom. */
+const CELLS = [
+  [1, 0],
+  [0, 1],
+  [1, 2],
+  [0, 3],
+];
+
+const MARK_WIDTH_RATIO = 0.7; // 358 / 512 in the official icon
+const BAR_ASPECT = 42.3624 / 108.932; // bar height / bar width
 
 function crc32(buf) {
   let c = ~0;
@@ -26,20 +44,24 @@ function chunk(type, data) {
 }
 
 function png(size) {
-  const rows = [];
-  const inset = Math.max(2, Math.round(size * 0.28));
-  const notch = Math.round(size * 0.18);
+  const barWidth = Math.max(1, Math.round((size * MARK_WIDTH_RATIO) / 2));
+  const barHeight = Math.max(1, Math.round(barWidth * BAR_ASPECT));
+  const left = Math.round((size - barWidth * 2) / 2);
+  const top = Math.round((size - barHeight * 4) / 2);
 
+  const rows = [];
   for (let y = 0; y < size; y++) {
     const row = Buffer.alloc(1 + size * 4);
     for (let x = 0; x < size; x++) {
-      // Bookmark glyph: vertical band with a notch cut out of the bottom.
-      const inBand = x >= inset && x < size - inset && y >= inset && y < size - inset;
-      const inNotch =
-        y > size - inset - notch &&
-        Math.abs(x - (size - 1) / 2) < notch - (size - inset - y);
-      const color = inBand && !inNotch ? FG : BG;
-      row.set(color, 1 + x * 4);
+      const column = Math.floor((x - left) / barWidth);
+      const rowIndex = Math.floor((y - top) / barHeight);
+      const inMark =
+        x >= left &&
+        x < left + barWidth * 2 &&
+        y >= top &&
+        y < top + barHeight * 4 &&
+        CELLS.some(([c, r]) => c === column && r === rowIndex);
+      row.set(inMark ? INK : PAPER, 1 + x * 4);
     }
     rows.push(row);
   }
@@ -57,9 +79,20 @@ function png(size) {
   ]);
 }
 
+/** Same mark as vector, for docs and store listings. */
+function svg() {
+  const bars = CELLS.map(
+    ([c, r]) =>
+      `  <rect x="${(c * 108.932).toFixed(3)}" y="${(r * 42.3624).toFixed(4)}" ` +
+      `width="108.932" height="42.3624" fill="#101018" />`,
+  ).join('\n');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 217.803 169.449" width="217.803" height="169.449">\n${bars}\n</svg>\n`;
+}
+
 mkdirSync(new URL('../public/icon/', import.meta.url), { recursive: true });
 for (const size of SIZES) {
-  const out = new URL(`../public/icon/${size}.png`, import.meta.url);
-  writeFileSync(out, png(size));
+  writeFileSync(new URL(`../public/icon/${size}.png`, import.meta.url), png(size));
   console.log(`wrote public/icon/${size}.png`);
 }
+writeFileSync(new URL('../public/icon/mark.svg', import.meta.url), svg());
+console.log('wrote public/icon/mark.svg');

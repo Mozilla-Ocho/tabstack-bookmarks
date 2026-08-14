@@ -20,6 +20,13 @@
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
+  padding: 12px 0 0;
+}
+
+/* Only the page-level bar sticks; in-section rows would otherwise float over
+   the content beneath them. */
+.options > .actions {
   position: sticky;
   bottom: 0;
   padding: 12px 0;

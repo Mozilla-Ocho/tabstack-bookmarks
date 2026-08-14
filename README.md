@@ -89,6 +89,21 @@ stubbed.
 Manual load in Firefox: `about:debugging#/runtime/this-firefox` → *Load Temporary
 Add-on* → pick `.output/firefox-mv3/manifest.json`.
 
+### Driving a real Firefox
+
+`scripts/firefox-drive.mjs` opens the extension's own pages in a running Firefox and
+runs code inside them, which is how the options page, the save pipeline and the import
+queue were verified against the live API. WebDriver BiDi refuses to navigate to
+`moz-extension://` URLs, so the script uses Marionette's chrome context. Its header has
+the exact `web-ext run` invocation; then:
+
+```bash
+node scripts/firefox-drive.mjs options.html --shot=/tmp/options.png
+node scripts/firefox-drive.mjs import.html --eval="return document.title"
+```
+
+`--eval` runs in the extension page, so `browser.*` is available and the body can await.
+
 First run: open the options page, paste the Tabstack API key, pick a destination, hit
 **Test key** / **Test repo access**.
 
@@ -108,6 +123,14 @@ First run: open the options page, paste the Tabstack API key, pick a destination
   `strict_min_version` is `142.0`; lower it (and drop the key) if you need older Firefox.
 - `pnpm dlx web-ext lint -s .output/firefox-mv3` is clean apart from two
   `UNSAFE_VAR_ASSIGNMENT` notices inside React's own bundle.
+
+## Icons
+
+`scripts/make-icons.mjs` draws the Tabstack mark (four offset bars on a 2×4 grid) from
+the wordmark's rect geometry, on integer pixel boundaries per size rather than
+downscaling one large PNG, so the bars stay crisp at 16px. Ink `#101018` on white,
+mark at 70% of the tile — matching the official `icon-512x512.png`. It also emits
+`public/icon/mark.svg`.
 
 ## Layout
 
