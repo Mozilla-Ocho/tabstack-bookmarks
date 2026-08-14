@@ -400,9 +400,11 @@ export function App() {
                 }
               />
               <p className="help">
-                Needs the Local REST API community plugin, with Obsidian running. Use its
-                HTTP port (default 27123) — the HTTPS port uses a self-signed certificate
-                that extensions refuse.
+                Needs the Local REST API community plugin, with Obsidian running. The
+                plugin's HTTPS port (27124) uses a self-signed certificate that browsers
+                reject, so either enable its <em>Non-encrypted (HTTP) Server</em> option
+                and use port 27123, or open the HTTPS URL in a tab once and accept the
+                certificate.
               </p>
             </div>
           </>

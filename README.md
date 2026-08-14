@@ -109,7 +109,7 @@ directory.
 | --- | --- | --- |
 | **Local folder** | Browser downloads API, into `<download dir>/<subfolder>/` | Nothing. Browsers can only write inside the download directory, so point Firefox's download folder at your vault (or symlink it) if you want notes to land in Obsidian. |
 | **GitHub repo** | Commit via the contents API | A fine-grained token with `Contents: read and write`, plus owner, repo, branch and folder. |
-| **Obsidian vault** | `PUT /vault/<path>` on the Local REST API plugin | The plugin enabled with Obsidian running. Use its **HTTP** port (default 27123) — the HTTPS port's self-signed certificate is rejected by extensions. |
+| **Obsidian vault** | `PUT /vault/<path>` on the Local REST API plugin | The plugin enabled with Obsidian running. It serves HTTPS on 27124 with a **self-signed certificate**, which browsers reject — so either enable the plugin's *Non-encrypted (HTTP) Server* option and point at port 27123, or open `https://127.0.0.1:27124` in a tab once and accept the certificate. |
 
 Duplicates: GitHub and Obsidian check whether the path is taken and append `-1`, `-2`, …
 unless you asked to overwrite; downloads use the browser's own uniquify.
