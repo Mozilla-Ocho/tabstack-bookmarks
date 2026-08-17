@@ -36,11 +36,22 @@ Two paths only a human can check, both on a **fresh profile**:
 3. Commit, then tag: `git tag -a v0.1.0 -m "v0.1.0"`.
 4. `git push --follow-tags`.
 
-Pushing the tag runs `.github/workflows/release.yml`, which repeats the whole gate, builds
-both packages, refuses the tag if it disagrees with `package.json`, and opens a **draft**
-GitHub release with the zips attached. Download those zips for the store uploads rather than
-whatever is in your `.output/` — they are the ones built from the tagged commit. The steps
-below stay accurate if you would rather build locally.
+Pushing the tag is the release. `.github/workflows/release.yml` then does all of this on a
+clean checkout of the tagged commit:
+
+- refuses the tag if it disagrees with `package.json`, or if `CHANGELOG.md` has no **dated**
+  section for it — both before spending five minutes on a build;
+- runs the whole gate again, because a tag can point at a commit CI never saw;
+- builds both targets, runs `web-ext lint`, and produces the three zips;
+- opens a **draft** GitHub release whose notes are that changelog section, with the zips
+  attached.
+
+Download those zips for the store uploads rather than whatever is in your `.output/` — they
+are the ones built from the tagged commit, by something with no local state. The steps below
+stay accurate if you would rather build by hand.
+
+Still yours to do: read the draft, publish it, and upload to the two stores. Publishing is
+deliberately not automated — see [Publishing](#publishing).
 
 ## Screenshots
 
@@ -50,6 +61,16 @@ upload — a 2× screenshot of a 1280×800 window is a 2560×1600 file and gets 
 
 ```bash
 sips -z 800 1280 store/screenshots/*.png   # macOS; in place
+```
+
+## Publishing
+
+The release is left as a draft on purpose. Nothing downstream can be taken back: a published
+GitHub release notifies watchers, and a store submission enters a review queue that cannot be
+cancelled halfway. Reading the notes once is cheap by comparison.
+
+```bash
+gh release edit "v0.3.0" --draft=false --latest
 ```
 
 ## Firefox (AMO)
