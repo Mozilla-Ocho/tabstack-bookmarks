@@ -113,6 +113,10 @@ worse than an error message.
 **Render errors must not blank a page.** Extension pages get no browser error UI, so each
 entrypoint is wrapped in `ErrorBoundary`. Keep new entrypoints wrapped.
 
+**Work the background does not await goes through `detached()`.** A bare `void promise()`
+turns a storage failure into an unhandled rejection and a run that silently stopped. Use
+`void` only for helpers that already swallow their own errors (`broadcast`, `paintBadge`).
+
 ## Settings
 
 `Settings` in `src/lib/settings.ts` is the single schema. Adding a field means: the type,

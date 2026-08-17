@@ -33,17 +33,35 @@ const MENU_PAGE = 'tabstack-save-page';
 const MENU_LINK = 'tabstack-save-link';
 const IMPORT_ALARM = 'tabstack-import-resume';
 
+/**
+ * Starts work nothing is waiting on, and turns a rejection into a log line.
+ *
+ * The background has no UI to fail into, and these paths can genuinely reject —
+ * `storage.local` is finite, and an import writes to it once per bookmark. An
+ * unhandled rejection here leaves a run that just stopped, with nothing said
+ * anywhere; `[tabstack]` in the console is the difference between a bug report
+ * that can be acted on and "the import froze".
+ */
+function detached(what: string, work: Promise<unknown> | undefined): void {
+  void work?.catch((error: unknown) => {
+    console.error(`[tabstack] ${what} failed:`, error);
+  });
+}
+
 export default defineBackground(() => {
   browser.runtime.onInstalled.addListener((details) => {
-    void createMenus();
+    detached('create menus', createMenus());
     // Nothing works without an API key, so a fresh install lands on the options
     // page rather than on a toolbar button that only errors.
-    if (details.reason === 'install') void browser.runtime.openOptionsPage();
+    if (details.reason === 'install') {
+      detached('open options', browser.runtime.openOptionsPage());
+    }
   });
   // Event pages restart; menus are cheap to (re)create defensively.
-  void createMenus();
-  // Profiles that saved things before the durable index existed.
-  void listRecords().then(migrateFromRecent);
+  detached('create menus', createMenus());
+  // Profiles that saved things before the durable index existed. Gated by a
+  // stored flag, so this is one storage read per wakeup after the first.
+  detached('migrate saved index', listRecords().then(migrateFromRecent));
 
   // Chrome's native onMessage ignores returned promises, so reply through
   // sendResponse and keep the channel open with `return true` instead.
@@ -59,30 +77,36 @@ export default defineBackground(() => {
   // Alt+Shift+S saves the active tab without opening the popup.
   browser.commands?.onCommand.addListener((command) => {
     if (command !== 'save-page') return;
-    void browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
-      if (!isSaveableUrl(tab?.url)) return;
-      return handleSave({ type: 'save', url: tab!.url!, title: tab?.title ?? '' });
-    });
+    detached(
+      'save from keyboard command',
+      browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+        if (!isSaveableUrl(tab?.url)) return;
+        return handleSave({ type: 'save', url: tab!.url!, title: tab?.title ?? '' });
+      }),
+    );
   });
 
   // An import outlives the page that started it, and the event page can be
   // suspended mid-run, so a periodic alarm picks the queue back up.
   browser.alarms?.onAlarm.addListener((alarm) => {
-    if (alarm.name === IMPORT_ALARM) void resumeImport();
+    if (alarm.name === IMPORT_ALARM) detached('resume import', resumeImport());
   });
-  browser.runtime.onStartup?.addListener(() => void resumeImport());
-  void resumeImport();
+  browser.runtime.onStartup?.addListener(() => detached('resume import', resumeImport()));
+  detached('resume import', resumeImport());
 
   browser.contextMenus.onClicked.addListener((info, tab) => {
     const url = info.menuItemId === MENU_LINK ? info.linkUrl : (info.pageUrl ?? tab?.url);
     if (!isSaveableUrl(url)) return;
     // linkText is Firefox-only; fall back to the tab title elsewhere.
     const linkText = (info as { linkText?: string }).linkText;
-    void handleSave({
-      type: 'save',
-      url: url!,
-      title: (info.menuItemId === MENU_LINK ? linkText : tab?.title) ?? '',
-    });
+    detached(
+      'save from context menu',
+      handleSave({
+        type: 'save',
+        url: url!,
+        title: (info.menuItemId === MENU_LINK ? linkText : tab?.title) ?? '',
+      }),
+    );
   });
 });
 
@@ -123,7 +147,9 @@ function progressOf(job: ImportJob, currentTitle?: string): ImportProgress {
 async function runImport(options: Parameters<typeof startImport>[0]) {
   const job = await startImport(options);
   await browser.alarms?.create(IMPORT_ALARM, { periodInMinutes: 1 });
-  void drainImport();
+  // Deliberately not awaited: the page that asked wants the first progress
+  // snapshot now, and the alarm above picks the run back up if this dies.
+  detached('drain import', drainImport());
   return progressOf(job);
 }
 
@@ -189,7 +215,7 @@ async function createMenus(): Promise<void> {
 
 async function handleSave(request: SaveRequest): Promise<SaveRecord> {
   const record = await runSave(request, (partial) => {
-    void putRecord(partial);
+    detached('store progress', putRecord(partial));
     void broadcast(partial);
     void paintBadge(partial);
   });
@@ -220,7 +246,10 @@ async function paintBadge(record: SaveRecord): Promise<void> {
     await browser.action.setBadgeText({ text });
     await browser.action.setBadgeBackgroundColor({ color });
     if (record.status === 'done' || record.status === 'error') {
-      setTimeout(() => void browser.action.setBadgeText({ text: '' }), 5_000);
+      setTimeout(
+        () => detached('clear badge', browser.action.setBadgeText({ text: '' })),
+        5_000,
+      );
     }
   } catch {
     // action API missing (e.g. during tests)
