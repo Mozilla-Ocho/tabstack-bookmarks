@@ -11,6 +11,7 @@ import type { SaveRecord } from './messages';
 import { runSave } from './save';
 import { rememberSave } from './saveStore';
 import { savedUrls } from './savedIndex';
+import { canonicalUrl } from './url';
 
 export interface ImportOptions {
   /** Restrict to one folder's subtree; empty means every bookmark. */
@@ -116,7 +117,7 @@ export async function planImport(
     // must not re-save everything but the last 30.
     const done = await savedUrls();
     const before = items.length;
-    items = items.filter((item) => !done.has(item.url));
+    items = items.filter((item) => !done.has(canonicalUrl(item.url)));
     skipped = before - items.length;
   }
 

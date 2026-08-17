@@ -96,6 +96,51 @@ describe('auto-save', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toHaveProperty('disabled', true);
   });
 
+  /**
+   * The popup asks about, saves and follows progress for the canonical URL, or the
+   * background's replies would never match the tab it is showing.
+   */
+  it('works in canonical URLs, so a campaign link is not a second page', async () => {
+    await configured({ autoSave: true });
+    fakeBrowser.tabs.query = vi
+      .fn()
+      .mockResolvedValue([
+        { url: 'https://ex.com/a?utm_source=twitter&utm_medium=social', title: 'A Page' },
+      ]) as never;
+    await open();
+
+    await waitFor(() => expect(sent.some((m) => m.type === 'save')).toBe(true));
+    expect(sent.find((m) => m.type === 'getState')).toMatchObject({
+      url: 'https://ex.com/a',
+    });
+    expect(sent.find((m) => m.type === 'save')).toMatchObject({
+      url: 'https://ex.com/a',
+    });
+    // And the clean URL is what it shows. The URL shares its paragraph with the
+    // filename preview, so read the line rather than matching it exactly.
+    const line = screen.getByText(/ex\.com\/a/).textContent;
+    expect(line).toContain('https://ex.com/a');
+    expect(line).not.toContain('utm_source');
+  });
+
+  it('follows progress for a tab opened with a campaign link', async () => {
+    await configured({ autoSave: false });
+    fakeBrowser.tabs.query = vi
+      .fn()
+      .mockResolvedValue([
+        { url: 'https://ex.com/a?fbclid=xyz', title: 'A Page' },
+      ]) as never;
+    await open();
+
+    fakeBrowser.runtime.onMessage.trigger(
+      { type: 'saveUpdate', record: done({ status: 'storing' }) },
+      {},
+      () => {},
+    );
+
+    await waitFor(() => expect(screen.getByText('Storing markdown…')).toBeTruthy());
+  });
+
   it('does not save a page that is not http(s)', async () => {
     await configured({ autoSave: true });
     fakeBrowser.tabs.query = vi

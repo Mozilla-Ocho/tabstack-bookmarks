@@ -10,6 +10,7 @@ import type { SaveRecord, SaveRequest } from './messages';
 import { hasOrigin } from './permissions';
 import { backendOrigin, configErrors, getSettings } from './settings';
 import { extractMarkdown, generateSummary } from './tabstack';
+import { canonicalUrl } from './url';
 
 export function isSaveableUrl(url: string | undefined): boolean {
   if (!url) return false;
@@ -21,9 +22,13 @@ export function isSaveableUrl(url: string | undefined): boolean {
  * `onUpdate` is called on every state transition so the popup can follow along.
  */
 export async function runSave(
-  request: SaveRequest,
+  raw: SaveRequest,
   onUpdate: (record: SaveRecord) => void,
 ): Promise<SaveRecord> {
+  // Once, here, at the only entry to the pipeline: the URL that gets extracted,
+  // written into the frontmatter, stored and deduped is the same string, without
+  // the parameters that say who shared the link.
+  const request: SaveRequest = { ...raw, url: canonicalUrl(raw.url) };
   const now = Date.now();
   let record: SaveRecord = {
     url: request.url,

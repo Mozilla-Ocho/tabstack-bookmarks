@@ -57,6 +57,20 @@ allowed to reset on restart.
 UI history and the durable index. Progress updates use `putRecord()`. If you add a new
 save caller, call `rememberSave()` when it finishes.
 
+**URLs are canonical from `runSave()` onwards.** `canonicalUrl()` in `src/lib/url.ts` strips
+tracking parameters, so the same article shared through a newsletter, a tweet and an ad is one
+URL — one index key, one library row, one extraction. It runs once, at the pipeline entry, and
+the canonical string is what gets extracted, written into the frontmatter, stored and deduped.
+The list of parameters is curated and conservative: `utm_*`, click ids, newsletter tokens. Do
+not add `?id=`, `?v=`, `?page=`, `?q=` or `?si=` — stripping one of those saves a different
+page, which is worse than saving one twice.
+
+Two things exist only for entries written before this: `getSaved()` falls back to the raw key,
+and `canonicaliseSavedKeys()` re-keys them once per profile. `getSaved()` awaits that re-key
+rather than racing it, because a canonical key cannot find a legacy one — `saved:…/post` is
+not `saved:…/post?utm_source=old`, and the alternative is a full scan per lookup. Verified in a
+real browser: without the await, the first popup after an update called a saved page unsaved.
+
 **`savedIndex` is the library, not just a dedupe set.** `searchSaved()` backs the library
 page, so an entry is something a user can see, re-save and delete — `forgetSaved()` is a
 user-visible action now, not only internal bookkeeping.
@@ -208,15 +222,16 @@ message assertion in the suite meaningless.
 
 ## Storage keys
 
-| Key                  | Contents                                          |
-| -------------------- | ------------------------------------------------- |
-| `settings`           | The one settings object                           |
-| `recentSaves`        | Last 30 `SaveRecord`s, for the UI only            |
-| `saved:<url>`        | Durable index entry, one key per URL, O(1) writes |
-| `savedIndexWrites`   | Saves since the last prune sweep                  |
-| `savedIndexMigrated` | Set once the pre-index migration has run          |
-| `importJob`          | The running/most recent import job                |
-| `retrySaves`         | Saves waiting for another attempt                 |
+| Key                   | Contents                                          |
+| --------------------- | ------------------------------------------------- |
+| `settings`            | The one settings object                           |
+| `recentSaves`         | Last 30 `SaveRecord`s, for the UI only            |
+| `saved:<url>`         | Durable index entry, one key per URL, O(1) writes |
+| `savedIndexWrites`    | Saves since the last prune sweep                  |
+| `savedIndexMigrated`  | Set once the pre-index migration has run          |
+| `savedIndexCanonical` | Set once legacy keys have been re-keyed           |
+| `importJob`           | The running/most recent import job                |
+| `retrySaves`          | Saves waiting for another attempt                 |
 
 The library page reads the index through the `searchSaved` message rather than touching
 storage directly: only the background should be scanning 50,000 keys, and only once per

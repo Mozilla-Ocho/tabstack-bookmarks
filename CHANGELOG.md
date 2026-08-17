@@ -11,6 +11,12 @@ All notable changes to this extension. Format follows
 - A library page: everything ever saved, searchable by title, URL or the path it landed at,
   with per-row re-save and forget. The durable index held up to 50,000 entries and nothing
   could see past the thirty most recent. Reachable from the options page and the popup.
+- Tracking parameters are stripped from a URL before it is extracted, written, stored or
+  deduped. The same page arriving via a newsletter, a tweet and an ad was three index keys,
+  three extractions and three rows in the library; it is now one. The list is conservative —
+  `utm_*`, click ids, mailing-list tokens — and parameters that select the page (`?v=`, `?id=`,
+  `?si=`) are kept. Entries saved before this are re-keyed once per profile, and duplicates of
+  one page collapse to the newest.
 - Failed saves are retried by themselves. A single save had one chance, so a dropped
   connection lost the page; the original request — title, tags, note — is now queued and
   retried at 1, 5 and 15 minutes. Only failures that could succeed are queued, so a rejected

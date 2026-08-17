@@ -5,6 +5,7 @@
 import { browser } from '#imports';
 import type { SaveRecord } from './messages';
 import { forgetSaved, getSaved, markSaved, maybePruneSaved } from './savedIndex';
+import { canonicalUrl } from './url';
 
 const KEY = 'recentSaves';
 /** UI history only. The durable "already saved" set lives in savedIndex.ts. */
@@ -18,7 +19,8 @@ async function read(): Promise<Store> {
 }
 
 export async function getRecord(url: string): Promise<SaveRecord | undefined> {
-  return (await read())[url];
+  // Canonical, so the popup's raw tab URL finds what was saved from it.
+  return (await read())[canonicalUrl(url)];
 }
 
 export async function putRecord(record: SaveRecord): Promise<void> {
@@ -44,6 +46,8 @@ export async function rememberSave(record: SaveRecord): Promise<void> {
 
 export async function deleteRecord(url: string): Promise<void> {
   const store = await read();
+  delete store[canonicalUrl(url)];
+  // Entries written before URLs were canonicalised are keyed by the raw string.
   delete store[url];
   await browser.storage.local.set({ [KEY]: store });
   await forgetSaved(url);

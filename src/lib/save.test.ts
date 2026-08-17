@@ -76,6 +76,25 @@ describe('isSaveableUrl', () => {
 });
 
 describe('runSave', () => {
+  it('strips tracking parameters before doing anything with the URL', async () => {
+    const record = await runSave(
+      {
+        type: 'save',
+        url: 'https://ex.com/post?utm_source=newsletter&utm_medium=email&id=7',
+        title: 'A Post',
+      },
+      () => {},
+    );
+
+    // The record, and therefore the index key and the library row.
+    expect(record.url).toBe('https://ex.com/post?id=7');
+    // The URL sent for extraction: no reason to hand a campaign to the API, and
+    // a cached extraction is shared across everyone who was sent the link.
+    expect(vi.mocked(extractMarkdown).mock.calls[0]![0].url).toBe(
+      'https://ex.com/post?id=7',
+    );
+  });
+
   it('extracts, composes and stores, reporting each state', async () => {
     const states: SaveRecord[] = [];
     const result = await runSave(

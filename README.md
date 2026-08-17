@@ -105,6 +105,12 @@ so you never get empty keys. Your `note` and the AI `summary` join them when set
 frontmatter the extraction itself produced is stripped, so the document has exactly one
 block.
 
+Tracking parameters are stripped before anything is saved, so the same article sent to you by
+a newsletter, a friend and an ad is one page: one file, one entry, extracted once. `utm_*`,
+`fbclid`, `gclid`, mailing-list ids and the like go; anything that selects the page — `?v=`,
+`?id=`, `?page=`, `?q=`, and `?si=` on a share link — is kept, because dropping it would save
+something else.
+
 Filenames come from a template. Tokens: `{date}` `{yyyy}` `{mm}` `{dd}` `{slug}`
 `{title}` `{host}`. Slashes create folders, so `{yyyy}/{mm}/{slug}.md` gives you a dated
 tree. Token values are sanitised — a page titled `a/b:c` cannot escape into another
@@ -247,6 +253,7 @@ src/lib/
   markdown.ts       slugs, filename templates, frontmatter
   settings.ts       schema, defaults, validation, backend origins
   saveStore.ts      30-record UI history + the single final-write path
+  url.ts            strips tracking parameters, so one page is one URL
   savedIndex.ts     durable url → {path, backend, savedAt} index, one key per URL
   retryQueue.ts     failed saves waiting for another attempt, with backoff
   bookmarks.ts      bookmark tree → flat saveable items, folder counts

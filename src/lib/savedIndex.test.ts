@@ -3,9 +3,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SaveRecord } from './messages';
 import {
+  canonicaliseSavedKeys,
   clearSaved,
   countSaved,
   forgetSaved,
@@ -137,6 +138,191 @@ describe('pruneSaved', () => {
     await markSaved(done('https://ex.com/a'));
     expect(await pruneSaved(10)).toBe(0);
     expect(await countSaved()).toBe(1);
+  });
+});
+
+describe('tracking parameters', () => {
+  /** The point of canonical keys: one page, one entry, however it was shared. */
+  it('treats the same page shared three ways as one entry', async () => {
+    await markSaved(done('https://ex.com/post?utm_source=newsletter', 1));
+    await markSaved(done('https://ex.com/post?fbclid=abc', 2));
+    await markSaved(done('https://ex.com/post', 3));
+
+    expect(await countSaved()).toBe(1);
+    expect(await savedUrls()).toEqual(new Set(['https://ex.com/post']));
+  });
+
+  it('answers isSaved for a URL carrying a campaign it was not saved with', async () => {
+    await markSaved(done('https://ex.com/post', 1));
+
+    expect(
+      await isSaved('https://ex.com/post?utm_source=twitter&utm_medium=social'),
+    ).toBe(true);
+    expect(await getSaved('https://ex.com/post?gclid=xyz')).toBeDefined();
+  });
+
+  it('still tells apart pages that differ by a real parameter', async () => {
+    await markSaved(done('https://ex.com/watch?v=one', 1));
+    await markSaved(done('https://ex.com/watch?v=two', 2));
+    expect(await countSaved()).toBe(2);
+  });
+
+  /**
+   * Entries written before canonical keys existed keep their raw URL, and must
+   * still count as saved rather than being fetched and paid for again.
+   */
+  it('recognises an entry stored before URLs were canonicalised', async () => {
+    await fakeBrowser.storage.local.set({
+      'saved:https://ex.com/old?utm_source=legacy': {
+        url: 'https://ex.com/old?utm_source=legacy',
+        path: 'old.md',
+        savedAt: 1,
+      },
+    });
+
+    expect(await savedUrls()).toContain('https://ex.com/old');
+  });
+
+  it('forgets by canonical URL, whatever was passed in', async () => {
+    await markSaved(done('https://ex.com/post?utm_source=x', 1));
+    await forgetSaved('https://ex.com/post?fbclid=y');
+    expect(await countSaved()).toBe(0);
+  });
+});
+
+describe('looking up an entry the migration has not reached', () => {
+  /**
+   * The migration runs on a background wakeup, and a lookup can beat it there.
+   * That was a real race in a real browser: the first popup after an update
+   * called a saved page unsaved, and auto-save paid to save it again.
+   */
+  it('finds a legacy entry by its raw key before any migration', async () => {
+    await fakeBrowser.storage.local.set({
+      'saved:https://ex.com/post?utm_source=old': {
+        url: 'https://ex.com/post?utm_source=old',
+        path: 'post.md',
+        savedAt: 5,
+      },
+    });
+
+    // Asked for either spelling, with no migration in between.
+    expect(await getSaved('https://ex.com/post?utm_source=old')).toMatchObject({
+      path: 'post.md',
+    });
+    expect(await isSaved('https://ex.com/post?utm_source=old')).toBe(true);
+  });
+
+  it('forgets a legacy entry whichever spelling is passed in', async () => {
+    await fakeBrowser.storage.local.set({
+      'saved:https://ex.com/post?utm_source=old': {
+        url: 'https://ex.com/post?utm_source=old',
+        path: 'post.md',
+        savedAt: 5,
+      },
+    });
+
+    await forgetSaved('https://ex.com/post?utm_source=old');
+    expect(await countSaved()).toBe(0);
+  });
+
+  it('reads the raw key only when the canonical one misses', async () => {
+    await markSaved(done('https://ex.com/clean', 1));
+    await canonicaliseSavedKeys();
+    const get = vi.spyOn(fakeBrowser.storage.local, 'get');
+
+    // Flag read, then the canonical key: a hit stops there.
+    await getSaved('https://ex.com/clean');
+    expect(get).toHaveBeenCalledTimes(2);
+
+    get.mockClear();
+    await getSaved('https://ex.com/nothing?utm_source=x');
+    expect(get).toHaveBeenCalledTimes(3);
+    get.mockRestore();
+  });
+});
+
+describe('canonicaliseSavedKeys', () => {
+  /**
+   * Bulk checks canonicalise as they read, so imports were already safe. A single
+   * lookup is one key, and that is what this fixes: without it the popup calls a
+   * saved page unsaved, and the user pays to save it twice.
+   */
+  it('re-keys a legacy entry so a single lookup finds it', async () => {
+    await fakeBrowser.storage.local.set({
+      'saved:https://ex.com/post?utm_source=old': {
+        url: 'https://ex.com/post?utm_source=old',
+        path: 'post.md',
+        savedAt: 5,
+      },
+    });
+    // The lookup runs the re-key itself rather than racing it, so the canonical
+    // URL finds an entry saved under a campaign.
+    expect(await getSaved('https://ex.com/post')).toMatchObject({
+      url: 'https://ex.com/post',
+      path: 'post.md',
+    });
+
+    // Actually re-keyed, not merely found by the raw-key fallback.
+    expect(Object.keys(await fakeBrowser.storage.local.get(null))).toContain(
+      'saved:https://ex.com/post',
+    );
+    expect(await canonicaliseSavedKeys()).toBe(0);
+    expect(await countSaved()).toBe(1);
+  });
+
+  it('collapses two campaign copies of one page, keeping the newer file', async () => {
+    await fakeBrowser.storage.local.set({
+      'saved:https://ex.com/post?utm_source=a': {
+        url: 'https://ex.com/post?utm_source=a',
+        path: 'old.md',
+        savedAt: 1,
+      },
+      'saved:https://ex.com/post?fbclid=b': {
+        url: 'https://ex.com/post?fbclid=b',
+        path: 'new.md',
+        savedAt: 9,
+      },
+    });
+
+    await canonicaliseSavedKeys();
+
+    expect(await countSaved()).toBe(1);
+    expect(await getSaved('https://ex.com/post')).toMatchObject({ path: 'new.md' });
+  });
+
+  it('leaves entries that are already canonical alone', async () => {
+    await markSaved(done('https://ex.com/clean', 3));
+    expect(await canonicaliseSavedKeys()).toBe(0);
+    expect(await getSaved('https://ex.com/clean')).toBeDefined();
+  });
+
+  /** A full-index scan; the background runs it on every wakeup otherwise. */
+  it('runs once per profile', async () => {
+    await fakeBrowser.storage.local.set({
+      'saved:https://ex.com/a?utm_source=x': {
+        url: 'https://ex.com/a?utm_source=x',
+        path: 'a.md',
+        savedAt: 1,
+      },
+    });
+    expect(await canonicaliseSavedKeys()).toBe(1);
+
+    // A legacy-shaped entry arriving afterwards is not re-keyed again, because
+    // nothing writes one any more.
+    await fakeBrowser.storage.local.set({
+      'saved:https://ex.com/b?utm_source=y': {
+        url: 'https://ex.com/b?utm_source=y',
+        path: 'b.md',
+        savedAt: 2,
+      },
+    });
+    expect(await canonicaliseSavedKeys()).toBe(0);
+  });
+
+  it('does nothing to an empty index, and still records that it ran', async () => {
+    expect(await canonicaliseSavedKeys()).toBe(0);
+    expect(await canonicaliseSavedKeys()).toBe(0);
+    expect(await countSaved()).toBe(0);
   });
 });
 

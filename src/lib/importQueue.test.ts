@@ -107,6 +107,42 @@ describe('planImport', () => {
     expect(plan.skipped).toBe(1);
   });
 
+  /**
+   * The expensive case: a bookmark folder full of newsletter links to pages that
+   * are already saved. Without canonical comparison every one is extracted again,
+   * and charged for again.
+   */
+  it('skips a bookmark whose only difference is a campaign', async () => {
+    collect.mockResolvedValue([
+      {
+        id: '1',
+        url: 'https://ex.com/a?utm_source=newsletter&utm_medium=email',
+        title: 'A',
+        folders: [],
+      },
+      { id: '2', url: 'https://ex.com/b?fbclid=abc', title: 'B', folders: [] },
+      { id: '3', url: 'https://ex.com/c', title: 'C', folders: [] },
+    ]);
+    await rememberSave(record({ url: 'https://ex.com/a', path: 'a.md' }));
+    await rememberSave(record({ url: 'https://ex.com/b', path: 'b.md' }));
+
+    const plan = await planImport({ ...OPTIONS, skipSaved: true });
+
+    expect(plan.items.map((i) => i.title)).toEqual(['C']);
+    expect(plan.skipped).toBe(2);
+  });
+
+  it('still imports a bookmark that differs by a real parameter', async () => {
+    collect.mockResolvedValue([
+      { id: '1', url: 'https://ex.com/watch?v=one', title: 'One', folders: [] },
+      { id: '2', url: 'https://ex.com/watch?v=two', title: 'Two', folders: [] },
+    ]);
+    await rememberSave(record({ url: 'https://ex.com/watch?v=one', path: 'one.md' }));
+
+    const plan = await planImport({ ...OPTIONS, skipSaved: true });
+    expect(plan.items.map((i) => i.title)).toEqual(['Two']);
+  });
+
   it('honours the limit', async () => {
     const plan = await planImport({ ...OPTIONS, limit: 2 });
     expect(plan.items).toHaveLength(2);

@@ -13,6 +13,7 @@ import {
   type SaveUpdate,
 } from '@/src/lib/messages';
 import { isSaveableUrl } from '@/src/lib/save';
+import { canonicalUrl } from '@/src/lib/url';
 import { backendShortLabel } from '@/src/ui/backendLabels';
 import { configErrors, getSettings, type Settings } from '@/src/lib/settings';
 
@@ -37,7 +38,12 @@ export function App() {
   useEffect(() => {
     (async () => {
       const [active] = await browser.tabs.query({ active: true, currentWindow: true });
-      const info = { url: active?.url ?? '', title: active?.title ?? '' };
+      // Canonical from the start: the background answers and broadcasts in
+      // canonical URLs, and `record.url === tab.url` is how progress is matched.
+      const info = {
+        url: canonicalUrl(active?.url ?? ''),
+        title: active?.title ?? '',
+      };
       const loaded = await getSettings();
       const stateReply = await browser.runtime.sendMessage({
         type: 'getState',
