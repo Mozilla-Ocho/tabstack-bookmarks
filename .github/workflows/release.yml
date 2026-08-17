@@ -15,7 +15,7 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # WXT names the zips after package.json's version, and that version becomes
       # the manifest version the stores enforce. A tag that disagrees with it means
