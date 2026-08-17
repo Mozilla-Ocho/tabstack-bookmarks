@@ -134,6 +134,45 @@ TypeScript is pinned to 6.x on purpose: `typescript-eslint` refuses to run again
 type-aware linting is worth more than being on the native compiler. Revisit when upstream
 supports it.
 
+## Strings
+
+Every string a user reads lives in `locales/en.yml`, and `@wxt-dev/i18n` compiles it to
+`_locales/<lang>/messages.json` at build time. A translation is one more file next to it —
+`locales/de.yml` — and no code change.
+
+```ts
+i18n.t('popup.title'); // plain
+i18n.t('popup.savedOn', [date]); // $1 substitution
+i18n.t('import.planned', count); // plural: the `1:`/`n:` forms
+```
+
+Adding a key means running `pnpm exec wxt prepare` (or any `pnpm dev`/`build`) to regenerate
+the types — `i18n.t` only accepts keys it knows, and it knows how many substitutions each
+one takes, so a typo or a missing argument is a compile error rather than a `??key??` in the
+UI. Two rules keep that useful:
+
+**No user-visible literal in an entrypoint.** If it renders, it comes from `i18n.t`.
+
+**A sentence is one key.** For inline markup, use `rich()` with `slots()` from
+`src/ui/rich.tsx` rather than splitting the sentence into a key per fragment — a translator
+needs to read and reorder the whole thing:
+
+```tsx
+// summarizeHelp: Adds a $1 call per save. Key points become a $2 section.
+rich(i18n.t('options.summarizeHelp', slots(2)), [
+  <code key="call">/generate/json</code>,
+  <code key="heading">## Key points</code>,
+]);
+```
+
+The manifest's `name`, `description`, action title and command description are
+`__MSG_key__` references the browser substitutes, which is why `default_locale` must stay
+set.
+
+Deliberately still English: the error messages thrown in `src/lib`. They are assembled from
+API responses and HTTP statuses, and the tests assert on them by name. Localizing them is a
+separate job, not a side effect of touching a backend.
+
 ## Storage keys
 
 | Key                  | Contents                                          |

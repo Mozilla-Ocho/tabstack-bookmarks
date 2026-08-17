@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { i18n } from '#i18n';
 
 interface Props {
   /** Where this boundary sits, e.g. "popup" — shown so a report is actionable. */
@@ -38,17 +39,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="crash" role="alert">
-        <h1>Something broke</h1>
-        <p className="help">
-          The {this.props.surface} hit an error and stopped rendering. Your saved files
-          are not affected.
-        </p>
+        <h1>{i18n.t('crash.title')}</h1>
+        <p className="help">{i18n.t('crash.help', [this.props.surface])}</p>
         <pre>{error.message}</pre>
         <div className="actions">
           <button className="primary" onClick={() => location.reload()}>
-            Reload
+            {i18n.t('common.reload')}
           </button>
-          <button onClick={() => this.setState({ error: null })}>Try again</button>
+          <button onClick={() => this.setState({ error: null })}>
+            {i18n.t('crash.tryAgain')}
+          </button>
         </div>
       </div>
     );

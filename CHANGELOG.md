@@ -6,6 +6,21 @@ All notable changes to this extension. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- Localization, via `@wxt-dev/i18n`. Every string the UI shows now lives in
+  `locales/en.yml`, including the extension name and description, which the manifest picks
+  up as `__MSG_` references. A translation is one more file — `locales/de.yml` — with no code
+  change, and a missing key falls back to English.
+- `rich()` in `src/ui/rich.tsx`, so a sentence containing inline `<code>` or `<kbd>` stays a
+  single translatable string instead of a key per fragment. Keys and their substitution
+  counts are typed, so a typo or a missing argument fails `pnpm compile`.
+
+### Changed
+
+- The Tabstack and destination error messages thrown in `src/lib` stay English for now. They
+  are assembled from API responses and HTTP statuses, and the tests assert on them by name.
+
 ## [0.2.0] — 2026-08-17
 
 ### Added

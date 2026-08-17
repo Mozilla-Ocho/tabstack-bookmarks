@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { browser, defineBackground } from '#imports';
+import { i18n } from '#i18n';
 import { listBookmarkFolders } from '@/src/lib/bookmarks';
 import {
   cancelImport,
@@ -185,9 +186,12 @@ async function notifyImport(job: ImportJob): Promise<void> {
     await browser.notifications.create({
       type: 'basic',
       iconUrl: browser.runtime.getURL('/icon/96.png'),
-      title: job.cancelled ? 'Bookmark import cancelled' : 'Bookmark import finished',
+      title: job.cancelled
+        ? i18n.t('notify.importCancelled')
+        : i18n.t('notify.importFinished'),
       message:
-        `${job.saved} saved${failed ? `, ${failed} failed` : ''}` +
+        i18n.t('notify.importCounts', job.saved) +
+        (failed ? i18n.t('notify.importFailedSuffix', [String(failed)]) : '') +
         (job.abortReason ? `\n${job.abortReason}` : ''),
     });
   } catch {
@@ -200,12 +204,12 @@ async function createMenus(): Promise<void> {
     await browser.contextMenus.removeAll();
     browser.contextMenus.create({
       id: MENU_PAGE,
-      title: 'Save page to Tabstack',
+      title: i18n.t('menu.savePage'),
       contexts: ['page'],
     });
     browser.contextMenus.create({
       id: MENU_LINK,
-      title: 'Save link to Tabstack',
+      title: i18n.t('menu.saveLink'),
       contexts: ['link'],
     });
   } catch {
@@ -262,11 +266,12 @@ async function notify(record: SaveRecord): Promise<void> {
     await browser.notifications.create({
       type: 'basic',
       iconUrl: browser.runtime.getURL('/icon/96.png'),
-      title: record.status === 'done' ? 'Saved to Tabstack' : 'Save failed',
+      title:
+        record.status === 'done' ? i18n.t('notify.saved') : i18n.t('notify.saveFailed'),
       message:
         record.status === 'done'
           ? `${record.title}\n${record.location ?? ''}`.trim()
-          : (record.error ?? 'Unknown error'),
+          : (record.error ?? i18n.t('notify.unknownError')),
     });
   } catch {
     // notifications blocked

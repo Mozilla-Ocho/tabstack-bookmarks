@@ -18,6 +18,10 @@ Screenshots live in `store/screenshots/`.
 
 (78 characters — matches the manifest description.)
 
+Both the name and this summary come from `extName` and `extDescription` in `locales/en.yml`,
+which is where the manifest reads them from. Change them there, not in `wxt.config.ts`, and a
+translated listing needs only a `locales/<code>.yml`.
+
 ## Short description (AMO summary, ~250 characters)
 
 > A bookmark manager that keeps the page, not just the link. One click converts the tab to

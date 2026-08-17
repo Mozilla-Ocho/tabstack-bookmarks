@@ -7,14 +7,17 @@ import { defineConfig } from 'wxt';
 // https://wxt.dev/api/config.html
 export default defineConfig({
   srcDir: '.',
-  modules: ['@wxt-dev/module-react'],
+  modules: ['@wxt-dev/module-react', '@wxt-dev/i18n/module'],
   // Firefox 128+ supports MV3; keeping one manifest version keeps the
   // `browser.action` / service-worker-vs-event-page differences to a minimum.
   manifestVersion: 3,
   manifest: ({ browser }) => ({
-    name: 'Tabstack Bookmarks',
-    description:
-      'Bookmark pages as markdown. Tabstack extracts the page, your storage keeps it.',
+    // Both come from locales/en.yml, so a translated listing needs one more file
+    // rather than a code change. The browser does the substitution, which is why
+    // default_locale has to be set for it to work at all.
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     // MV3's `author` is { email } — left out rather than publishing a personal
     // address; the store listings carry developer identity anyway.
     homepage_url: 'https://github.com/JustSteveKing/tabstack-bookmarks',
@@ -52,7 +55,7 @@ export default defineConfig({
     commands: {
       'save-page': {
         suggested_key: { default: 'Alt+Shift+S' },
-        description: 'Save the current page to Tabstack',
+        description: '__MSG_commandSavePage__',
       },
     },
     // Firefox-only, and left out of the Chrome package rather than shipped as a
@@ -74,7 +77,7 @@ export default defineConfig({
         }
       : {}),
     action: {
-      default_title: 'Save to Tabstack',
+      default_title: '__MSG_actionTitle__',
       // Pinned explicitly so the toolbar uses the pixel-snapped small sizes
       // rather than downscaling the 128px icon.
       default_icon: {

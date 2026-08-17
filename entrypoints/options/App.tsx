@@ -2,8 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { browser } from '#imports';
+import { i18n } from '#i18n';
+import { rich, slots } from '@/src/ui/rich';
 import { BACKENDS, BACKEND_ORDER } from '@/src/lib/backends';
 import { verifyGitHub } from '@/src/lib/backends/github';
 import { verifyObsidian } from '@/src/lib/backends/obsidian';
@@ -27,6 +29,17 @@ import {
 import { extractMarkdown } from '@/src/lib/tabstack';
 
 type Note = { kind: 'ok' | 'err'; text: string } | null;
+
+/** Filename template tokens, listed in the help text under the field. */
+const TEMPLATE_TOKENS = [
+  '{date}',
+  '{yyyy}',
+  '{mm}',
+  '{dd}',
+  '{slug}',
+  '{title}',
+  '{host}',
+];
 
 export function App() {
   const [settings, setLocal] = useState<Settings | null>(null);
@@ -71,7 +84,7 @@ export function App() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  if (!settings) return <div className="options">Loading…</div>;
+  if (!settings) return <div className="options">{i18n.t('common.loading')}</div>;
 
   const patch = (next: Partial<Settings>) => {
     setLocal({ ...settings, ...next });
@@ -101,7 +114,7 @@ export function App() {
       });
       setKeyNote({
         kind: 'ok',
-        text: `Key works — ${res.content.length} characters returned for example.com.`,
+        text: i18n.t('options.keyWorks', [String(res.content.length)]),
       });
     } catch (error) {
       setKeyNote({ kind: 'err', text: (error as Error).message });
@@ -117,16 +130,14 @@ export function App() {
     try {
       const s = settings!;
       if (origin && !isGrantableOrigin(origin)) {
-        throw new Error(
-          `${origin} is not a loopback address, so this build cannot request access to it.`,
-        );
+        throw new Error(i18n.t('options.originNotGrantable', [origin]));
       }
       if (
         origin &&
         !(await hasOrigin(origin)) &&
         !(await requestHostPermissions([origin]))
       ) {
-        throw new Error(`Access to ${origin} was not granted.`);
+        throw new Error(i18n.t('options.originRefused', [origin]));
       }
       setOriginGranted(true);
 
@@ -135,7 +146,7 @@ export function App() {
           ? await verifyGitHub(s.github)
           : s.backend === 'obsidian'
             ? await verifyObsidian(s.obsidian)
-            : 'Downloads need no connection check.';
+            : i18n.t('options.downloadsNoCheck');
       setDestNote({ kind: 'ok', text });
     } catch (error) {
       setDestNote({ kind: 'err', text: (error as Error).message });
@@ -155,30 +166,27 @@ export function App() {
       <header>
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <h1>Tabstack Bookmarks</h1>
+          <h1>{i18n.t('extName')}</h1>
         </div>
-        <p className="help">
-          Tabstack turns the page into markdown. The markdown is written only to the
-          destination you configure here.
-        </p>
+        <p className="help">{i18n.t('options.help')}</p>
       </header>
 
       {!granted && (
         <div className="status err">
-          Firefox needs your permission to reach api.tabstack.ai and api.github.com.{' '}
+          {i18n.t('options.grantHosts')}{' '}
           <button
             className="link"
             onClick={async () => setGranted(await requestHostPermissions())}
           >
-            Grant access
+            {i18n.t('options.grantAccess')}
           </button>
         </div>
       )}
 
       <section>
-        <h2>Tabstack</h2>
+        <h2>{i18n.t('options.tabstackHeading')}</h2>
         <div className="field">
-          <label htmlFor="apiKey">API key</label>
+          <label htmlFor="apiKey">{i18n.t('options.apiKeyLabel')}</label>
           <input
             id="apiKey"
             type="password"
@@ -187,27 +195,24 @@ export function App() {
             placeholder="ts_…"
             onChange={(e) => patch({ apiKey: e.target.value })}
           />
-          <p className="help">
-            Stored in extension local storage on this device only. Create one at
-            tabstack.ai.
-          </p>
+          <p className="help">{i18n.t('options.apiKeyHelp')}</p>
         </div>
 
         <div className="row">
           <div className="field">
-            <label htmlFor="effort">Fetch effort</label>
+            <label htmlFor="effort">{i18n.t('options.effortLabel')}</label>
             <select
               id="effort"
               value={settings.effort}
               onChange={(e) => patch({ effort: e.target.value as Settings['effort'] })}
             >
-              <option value="min">min — fastest (1-5s)</option>
-              <option value="standard">standard — balanced (3-15s)</option>
-              <option value="max">max — full browser render (15-60s)</option>
+              <option value="min">{i18n.t('options.effortMin')}</option>
+              <option value="standard">{i18n.t('options.effortStandard')}</option>
+              <option value="max">{i18n.t('options.effortMax')}</option>
             </select>
           </div>
           <div className="field">
-            <label htmlFor="scope">Content scope</label>
+            <label htmlFor="scope">{i18n.t('options.scopeLabel')}</label>
             <select
               id="scope"
               value={settings.contentScope}
@@ -215,8 +220,8 @@ export function App() {
                 patch({ contentScope: e.target.value as Settings['contentScope'] })
               }
             >
-              <option value="main">main — article only</option>
-              <option value="full">full — whole page</option>
+              <option value="main">{i18n.t('options.scopeMain')}</option>
+              <option value="full">{i18n.t('options.scopeFull')}</option>
             </select>
           </div>
         </div>
@@ -227,7 +232,7 @@ export function App() {
             checked={settings.nocache}
             onChange={(e) => patch({ nocache: e.target.checked })}
           />
-          Bypass Tabstack cache on every save
+          {i18n.t('options.nocache')}
         </label>
 
         <label className="checkbox">
@@ -236,12 +241,13 @@ export function App() {
             checked={settings.summarize}
             onChange={(e) => patch({ summarize: e.target.checked })}
           />
-          Generate an AI summary, key points and tag suggestions
+          {i18n.t('options.summarize')}
         </label>
         <p className="help">
-          Adds a <code>/generate/json</code> call per save — a second API call, so double
-          the credits. The summary lands in the frontmatter and the key points become a{' '}
-          <code>## Key points</code> section.
+          {rich(i18n.t('options.summarizeHelp', slots(2)), [
+            <code key="call">/generate/json</code>,
+            <code key="heading">## Key points</code>,
+          ])}
         </p>
 
         {settings.summarize && (
@@ -251,7 +257,7 @@ export function App() {
               checked={settings.useSuggestedTags}
               onChange={(e) => patch({ useSuggestedTags: e.target.checked })}
             />
-            Add the suggested tags to each bookmark
+            {i18n.t('options.useSuggestedTags')}
           </label>
         )}
 
@@ -260,7 +266,7 @@ export function App() {
             onClick={() => void testKey()}
             disabled={busy !== null || !settings.apiKey}
           >
-            {busy === 'key' ? 'Testing…' : 'Test key'}
+            {busy === 'key' ? i18n.t('options.testingKey') : i18n.t('options.testKey')}
           </button>
           {keyNote && (
             <span
@@ -275,9 +281,9 @@ export function App() {
       </section>
 
       <section>
-        <h2>Destination</h2>
+        <h2>{i18n.t('options.destinationHeading')}</h2>
         <div className="field">
-          <label htmlFor="backend">Store markdown in</label>
+          <label htmlFor="backend">{i18n.t('options.backendLabel')}</label>
           <select
             id="backend"
             value={settings.backend}
@@ -296,31 +302,35 @@ export function App() {
 
         {!originGranted && origin && isGrantableOrigin(origin) && (
           <div className="status err" role="status">
-            The extension needs permission to reach <code>{origin}</code>.{' '}
+            {rich(i18n.t('options.grantOrigin', slots(1)), [
+              <code key="origin">{origin}</code>,
+            ])}{' '}
             <button
               className="link"
               onClick={async () =>
                 setOriginGranted(await requestHostPermissions([origin]))
               }
             >
-              Grant access
+              {i18n.t('options.grantAccess')}
             </button>
           </div>
         )}
 
         {origin && !isGrantableOrigin(origin) && (
           <div className="status err" role="status">
-            <code>{origin}</code> is not a loopback address. This build can only be
-            granted access to <code>localhost</code> and <code>127.0.0.1</code>; a vault
-            on another machine needs its pattern added to{' '}
-            <code>optional_host_permissions</code> and a rebuild.
+            {rich(i18n.t('options.originNotLoopback', slots(4)), [
+              <code key="origin">{origin}</code>,
+              <code key="localhost">localhost</code>,
+              <code key="loopback">127.0.0.1</code>,
+              <code key="key">optional_host_permissions</code>,
+            ])}
           </div>
         )}
 
         {settings.backend === 'github' && (
           <>
             <div className="field">
-              <label htmlFor="token">GitHub token</label>
+              <label htmlFor="token">{i18n.t('options.githubTokenLabel')}</label>
               <input
                 id="token"
                 type="password"
@@ -332,13 +342,14 @@ export function App() {
                 }
               />
               <p className="help">
-                Fine-grained token with <code>Contents: read and write</code> on the
-                target repo.
+                {rich(i18n.t('options.githubTokenHelp', slots(1)), [
+                  <code key="perm">Contents: read and write</code>,
+                ])}
               </p>
             </div>
             <div className="row">
               <div className="field">
-                <label htmlFor="owner">Owner</label>
+                <label htmlFor="owner">{i18n.t('options.ownerLabel')}</label>
                 <input
                   id="owner"
                   value={settings.github.owner}
@@ -350,7 +361,7 @@ export function App() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="repo">Repo</label>
+                <label htmlFor="repo">{i18n.t('options.repoLabel')}</label>
                 <input
                   id="repo"
                   value={settings.github.repo}
@@ -362,7 +373,7 @@ export function App() {
             </div>
             <div className="row">
               <div className="field">
-                <label htmlFor="branch">Branch</label>
+                <label htmlFor="branch">{i18n.t('options.branchLabel')}</label>
                 <input
                   id="branch"
                   value={settings.github.branch}
@@ -374,7 +385,7 @@ export function App() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="ghFolder">Folder in repo</label>
+                <label htmlFor="ghFolder">{i18n.t('options.githubFolderLabel')}</label>
                 <input
                   id="ghFolder"
                   value={settings.github.folder}
@@ -390,17 +401,14 @@ export function App() {
 
         {settings.backend === 'download' && (
           <div className="field">
-            <label htmlFor="dlFolder">Subfolder of your download directory</label>
+            <label htmlFor="dlFolder">{i18n.t('options.downloadFolderLabel')}</label>
             <input
               id="dlFolder"
               value={settings.download.folder}
               placeholder="tabstack"
               onChange={(e) => patch({ download: { folder: e.target.value } })}
             />
-            <p className="help">
-              Browsers can only write inside the download directory. Point the browser's
-              download folder at your vault (or symlink it) to land files in Obsidian.
-            </p>
+            <p className="help">{i18n.t('options.downloadFolderHelp')}</p>
           </div>
         )}
 
@@ -408,7 +416,7 @@ export function App() {
           <>
             <div className="row">
               <div className="field">
-                <label htmlFor="obsUrl">Local REST API URL</label>
+                <label htmlFor="obsUrl">{i18n.t('options.obsidianUrlLabel')}</label>
                 <input
                   id="obsUrl"
                   value={settings.obsidian.baseUrl}
@@ -421,7 +429,7 @@ export function App() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="obsFolder">Folder in vault</label>
+                <label htmlFor="obsFolder">{i18n.t('options.obsidianFolderLabel')}</label>
                 <input
                   id="obsFolder"
                   value={settings.obsidian.folder}
@@ -433,7 +441,7 @@ export function App() {
               </div>
             </div>
             <div className="field">
-              <label htmlFor="obsToken">Local REST API key</label>
+              <label htmlFor="obsToken">{i18n.t('options.obsidianTokenLabel')}</label>
               <input
                 id="obsToken"
                 type="password"
@@ -444,11 +452,9 @@ export function App() {
                 }
               />
               <p className="help">
-                Needs the Local REST API community plugin, with Obsidian running. The
-                plugin's HTTPS port (27124) uses a self-signed certificate that browsers
-                reject, so either enable its <em>Non-encrypted (HTTP) Server</em> option
-                and use port 27123, or open the HTTPS URL in a tab once and accept the
-                certificate.
+                {rich(i18n.t('options.obsidianTokenHelp', slots(1)), [
+                  <em key="option">Non-encrypted (HTTP) Server</em>,
+                ])}
               </p>
             </div>
           </>
@@ -457,7 +463,9 @@ export function App() {
         {settings.backend !== 'download' && (
           <div className="actions">
             <button onClick={() => void testDestination()} disabled={busy !== null}>
-              {busy === 'dest' ? 'Checking…' : 'Test destination'}
+              {busy === 'dest'
+                ? i18n.t('options.testingDestination')
+                : i18n.t('options.testDestination')}
             </button>
             {destNote && (
               <span
@@ -473,28 +481,35 @@ export function App() {
       </section>
 
       <section>
-        <h2>Files</h2>
+        <h2>{i18n.t('options.filesHeading')}</h2>
         <div className="field">
-          <label htmlFor="template">Filename template</label>
+          <label htmlFor="template">{i18n.t('options.templateLabel')}</label>
           <input
             id="template"
             value={settings.filenameTemplate}
             onChange={(e) => patch({ filenameTemplate: e.target.value })}
           />
           <p className="help">
-            Tokens: <code>{'{date}'}</code> <code>{'{yyyy}'}</code> <code>{'{mm}'}</code>{' '}
-            <code>{'{dd}'}</code> <code>{'{slug}'}</code> <code>{'{title}'}</code>{' '}
-            <code>{'{host}'}</code>. Slashes create folders. Example:{' '}
-            <code>{preview}</code>
+            {rich(i18n.t('options.templateHelp', slots(2)), [
+              <span key="tokens">
+                {TEMPLATE_TOKENS.map((token, i) => (
+                  <Fragment key={token}>
+                    {i > 0 && ' '}
+                    <code>{token}</code>
+                  </Fragment>
+                ))}
+              </span>,
+              <code key="preview">{preview}</code>,
+            ])}
           </p>
         </div>
 
         <div className="field">
-          <label htmlFor="defaultTags">Tags added to every bookmark</label>
+          <label htmlFor="defaultTags">{i18n.t('options.defaultTagsLabel')}</label>
           <input
             id="defaultTags"
             value={settings.defaultTags.join(', ')}
-            placeholder="bookmark, inbox"
+            placeholder={i18n.t('options.defaultTagsPlaceholder')}
             onChange={(e) => patch({ defaultTags: parseTags(e.target.value) })}
           />
         </div>
@@ -505,35 +520,35 @@ export function App() {
             checked={settings.autoSave}
             onChange={(e) => patch({ autoSave: e.target.checked })}
           />
-          Start saving as soon as the popup opens
+          {i18n.t('options.autoSave')}
         </label>
         <p className="help">
-          <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> saves the active tab without
-          opening the popup.
+          {rich(i18n.t('options.shortcutHelp', slots(1)), [
+            <span key="keys">
+              <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>
+            </span>,
+          ])}
         </p>
       </section>
 
       <section>
-        <h2>Existing bookmarks</h2>
-        <p className="help">
-          Convert bookmarks you already have into markdown, folder by folder. Runs in the
-          background, one bookmark at a time.
-        </p>
+        <h2>{i18n.t('options.existingHeading')}</h2>
+        <p className="help">{i18n.t('options.existingHelp')}</p>
         <div className="actions">
           <button
             onClick={() =>
               void browser.tabs.create({ url: browser.runtime.getURL('/import.html') })
             }
           >
-            Open bookmark import
+            {i18n.t('options.openImport')}
           </button>
         </div>
       </section>
 
       <section>
-        <h2>Recent saves</h2>
+        <h2>{i18n.t('options.recentHeading')}</h2>
         {recent.length === 0 ? (
-          <p className="help">Nothing saved yet.</p>
+          <p className="help">{i18n.t('options.nothingSaved')}</p>
         ) : (
           <ul className="recent">
             {recent.map((item) => (
@@ -546,12 +561,12 @@ export function App() {
                       ? item.location
                       : item.status === 'error'
                         ? item.error
-                        : 'in progress…'}
+                        : i18n.t('options.inProgress')}
                     {item.link && (
                       <>
                         {' · '}
                         <a href={item.link} target="_blank" rel="noreferrer">
-                          open
+                          {i18n.t('options.open')}
                         </a>
                       </>
                     )}
@@ -566,9 +581,8 @@ export function App() {
         )}
         <p className="help">
           {savedCount === null
-            ? 'Counting…'
-            : `${savedCount.toLocaleString()} page${savedCount === 1 ? '' : 's'} saved in total. ` +
-              'This list shows the 30 most recent; the full set is remembered so imports can skip what is already saved.'}
+            ? i18n.t('options.counting')
+            : i18n.t('options.savedTotal', savedCount, [savedCount.toLocaleString()])}
         </p>
         <div className="actions">
           <button
@@ -577,29 +591,23 @@ export function App() {
               void countSaved().then(setSavedCount);
             }}
           >
-            Refresh
+            {i18n.t('common.refresh')}
           </button>
           <button
             onClick={async () => {
-              if (
-                !confirm(
-                  'Forget which pages have been saved? Your markdown files are untouched, but the next import will re-save everything.',
-                )
-              ) {
-                return;
-              }
+              if (!confirm(i18n.t('options.forgetSavedConfirm'))) return;
               await clearSaved();
               setSavedCount(0);
             }}
           >
-            Forget saved history
+            {i18n.t('options.forgetSaved')}
           </button>
         </div>
       </section>
 
       <div className="actions">
         <button className="primary" onClick={() => void persist()}>
-          Save settings
+          {i18n.t('options.saveSettings')}
         </button>
         <button
           onClick={() => {
@@ -608,12 +616,12 @@ export function App() {
             setDirty(true);
           }}
         >
-          Reset to defaults
+          {i18n.t('options.resetDefaults')}
         </button>
-        {saved && <span className="status ok">Saved.</span>}
+        {saved && <span className="status ok">{i18n.t('common.saved')}</span>}
         {dirty && (
           <span className="status err" role="status">
-            Unsaved changes.
+            {i18n.t('common.unsavedChanges')}
           </span>
         )}
       </div>

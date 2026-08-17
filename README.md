@@ -204,11 +204,15 @@ entrypoints/
   popup/            one-click save, editable title/tags/note
   options/          API key, destination, filename template, recent saves
   import/           bulk import of existing bookmarks
+locales/
+  en.yml            every string a user reads; a translation is one more file
 src/ui/
   style.css         brand tokens, shared component styles
   ErrorBoundary.tsx keeps a render error from blanking a page
+  rich.tsx          puts inline markup into a translated sentence
 src/lib/
   tabstack.ts       /extract/markdown + /generate/json clients, error mapping
+  httpError.ts      the status every HTTP failure carries, and what to do about it
   save.ts           extract → compose → store orchestration
   markdown.ts       slugs, filename templates, frontmatter
   settings.ts       schema, defaults, validation, backend origins
@@ -254,6 +258,20 @@ Four touch points: implement `StorageBackend` in `src/lib/backends/`, register i
 `src/lib/settings.ts` (defaults _and_ the deep merge in `getSettings`), then add its
 fieldset to the options page. If it talks to a user-supplied host, extend
 `backendOrigin()` so its origin gets requested at runtime.
+
+### Adding a language
+
+Every string the UI shows lives in `locales/en.yml`, compiled by `@wxt-dev/i18n` into the
+`_locales` directory the browsers expect. To add a language, copy that file to
+`locales/<code>.yml`, translate the values, and rebuild — no code changes, and any key you
+leave out falls back to English.
+
+The extension name and description are in there too, so a translated store listing needs
+nothing but the file. The language follows the browser's own setting; extensions cannot
+offer their own language picker.
+
+One thing is still English on purpose: the error messages from `src/lib`, which are built
+out of API responses and HTTP statuses.
 
 ### Theming
 

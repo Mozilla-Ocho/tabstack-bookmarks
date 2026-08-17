@@ -1,0 +1,227 @@
+# Every user-visible string in the extension's own pages. A translation is one
+# more file next to this one — locales/de.yml, locales/fr.yml — and no code
+# change. Keys are grouped by where they appear.
+#
+# `$1` is a substitution passed by the caller; `$$` is a literal dollar sign.
+# A key with `1:`/`n:` children is a plural form, selected by the count passed
+# as i18n.t()'s second argument.
+#
+# Not in here yet: the error messages thrown by src/lib. They are assembled from
+# API responses and HTTP statuses, and are asserted on by name in the tests.
+
+# Used by the manifest via __MSG_extName__ / __MSG_extDescription__, and by both
+# store listings. Keep the description at or under 132 characters.
+extName: Tabstack Bookmarks
+extDescription: Bookmark pages as markdown. Tabstack extracts the page, your storage keeps it.
+
+# Toolbar button tooltip and the keyboard command's description, also manifest.
+actionTitle: Save to Tabstack
+commandSavePage: Save the current page to Tabstack
+
+# Context menu entries.
+menu:
+  savePage: Save page to Tabstack
+  saveLink: Save link to Tabstack
+
+# Notifications raised by the background.
+notify:
+  saved: Saved to Tabstack
+  saveFailed: Save failed
+  unknownError: Unknown error
+  importFinished: Bookmark import finished
+  importCancelled: Bookmark import cancelled
+  importCounts:
+    1: $1 saved
+    n: $1 saved
+  importFailedSuffix: ', $1 failed'
+
+common:
+  loading: Loading…
+  options: Options
+  save: Save
+  cancel: Cancel
+  refresh: Refresh
+  openOptions: Open options
+  reload: Reload
+  unsavedChanges: Unsaved changes.
+  saved: Saved.
+
+# The popup: the toolbar button's panel.
+popup:
+  title: Save to Tabstack
+  notHttp: This page is not an http(s) URL, so it cannot be saved.
+  extracting: Extracting markdown via Tabstack…
+  storing: Storing markdown…
+  savedTo: 'Saved to '
+  savedEarlierTo: 'Saved earlier to '
+  savedOn: on $1
+  view: view
+  summarySkipped: 'Summary skipped: $1'
+  titleLabel: Title
+  tagsLabel: Tags (comma separated)
+  tagsPlaceholder: reading, research
+  noteLabel: Note
+  noteButton: Note
+  lessButton: Less
+  summarize: Summarize with AI
+  overwrite: Overwrite the same file when re-saving
+  saving: Saving…
+  save: Save
+  resave: Re-save
+
+# The options page.
+options:
+  help:
+    Tabstack turns the page into markdown. The markdown is written only to the destination
+    you configure here.
+  grantHosts: Firefox needs your permission to reach api.tabstack.ai and api.github.com.
+  grantAccess: Grant access
+
+  tabstackHeading: Tabstack
+  apiKeyLabel: API key
+  apiKeyHelp: Stored in extension local storage on this device only. Create one at tabstack.ai.
+  effortLabel: Fetch effort
+  effortMin: min — fastest (1-5s)
+  effortStandard: standard — balanced (3-15s)
+  effortMax: max — full browser render (15-60s)
+  scopeLabel: Content scope
+  scopeMain: main — article only
+  scopeFull: full — whole page
+  nocache: Bypass Tabstack cache on every save
+  summarize: Generate an AI summary, key points and tag suggestions
+  # $1 is the API path, $2 the markdown heading; both rendered as code.
+  summarizeHelp:
+    Adds a $1 call per save — a second API call, so double the credits. The summary lands in
+    the frontmatter and the key points become a $2 section.
+  useSuggestedTags: Add the suggested tags to each bookmark
+  testKey: Test key
+  testingKey: Testing…
+  # $1 is how many characters came back from the test fetch.
+  keyWorks: Key works — $1 characters returned for example.com.
+
+  destinationHeading: Destination
+  backendLabel: Store markdown in
+  # $1 is the origin the destination needs, rendered as code.
+  grantOrigin: The extension needs permission to reach $1.
+  # $1 is the origin, $2 "localhost", $3 "127.0.0.1", $4 the manifest key.
+  originNotLoopback:
+    $1 is not a loopback address. This build can only be granted access to $2 and $3; a
+    vault on another machine needs its pattern added to $4 and a rebuild.
+  # $1 is the origin that was refused.
+  originRefused: Access to $1 was not granted.
+  # $1 is the origin that cannot be requested.
+  originNotGrantable: $1 is not a loopback address, so this build cannot request access to it.
+  downloadsNoCheck: Downloads need no connection check.
+  testDestination: Test destination
+  testingDestination: Checking…
+
+  githubTokenLabel: GitHub token
+  # $1 is the permission the token needs, rendered as code.
+  githubTokenHelp: Fine-grained token with $1 on the target repo.
+  ownerLabel: Owner
+  repoLabel: Repo
+  branchLabel: Branch
+  githubFolderLabel: Folder in repo
+  downloadFolderLabel: Subfolder of your download directory
+  downloadFolderHelp:
+    Browsers can only write inside the download directory. Point the browser's download
+    folder at your vault (or symlink it) to land files in Obsidian.
+  obsidianUrlLabel: Local REST API URL
+  obsidianFolderLabel: Folder in vault
+  obsidianTokenLabel: Local REST API key
+  # $1 is the plugin option to enable, rendered in italics.
+  obsidianTokenHelp:
+    Needs the Local REST API community plugin, with Obsidian running. The plugin's HTTPS
+    port (27124) uses a self-signed certificate that browsers reject, so either enable its
+    $1 option and use port 27123, or open the HTTPS URL in a tab once and accept the
+    certificate.
+
+  filesHeading: Files
+  templateLabel: Filename template
+  # $1 is the list of tokens, $2 an example filename; both rendered as code.
+  templateHelp: 'Tokens: $1. Slashes create folders. Example: $2'
+  defaultTagsLabel: Tags added to every bookmark
+  defaultTagsPlaceholder: bookmark, inbox
+  autoSave: Start saving as soon as the popup opens
+  # $1 is the keyboard shortcut, rendered as keys.
+  shortcutHelp: $1 saves the active tab without opening the popup.
+
+  existingHeading: Existing bookmarks
+  existingHelp:
+    Convert bookmarks you already have into markdown, folder by folder. Runs in the
+    background, one bookmark at a time.
+  openImport: Open bookmark import
+
+  recentHeading: Recent saves
+  nothingSaved: Nothing saved yet.
+  inProgress: in progress…
+  open: open
+  counting: Counting…
+  # $1 is the total number of pages saved, already formatted for the locale.
+  savedTotal:
+    1: 1 page saved in total. This list shows the 30 most recent; the full set is
+      remembered so imports can skip what is already saved.
+    n: $1 pages saved in total. This list shows the 30 most recent; the full set is
+      remembered so imports can skip what is already saved.
+  forgetSaved: Forget saved history
+  forgetSavedConfirm:
+    Forget which pages have been saved? Your markdown files are untouched, but the next
+    import will re-save everything.
+  saveSettings: Save settings
+  resetDefaults: Reset to defaults
+
+# The bookmark import page.
+import:
+  title: Import existing bookmarks
+  help: Every selected bookmark goes through Tabstack and lands in your configured
+    destination — one API call per bookmark, so this costs credits. The run keeps going in
+    the background; you can close this tab.
+  backgroundError: "The extension's background page reported: $1"
+  whatHeading: What to import
+  folderLabel: Folder
+  allBookmarks: All bookmarks
+  # $1 is the folder name, $2 how many bookmarks are in it.
+  folderOption: $1 ($2)
+  skipSaved: Skip bookmarks this extension already saved
+  limitLabel: Stop after (blank = no limit)
+  limitHelp: Start with 5–10 to see what the output looks like before committing credits.
+  planned:
+    1: 1 bookmark will be imported
+    n: $1 bookmarks will be imported
+  plannedSkipped: ', $1 skipped as already saved'
+  howHeading: How to import
+  tagsLabel: Tags on every imported bookmark
+  tagsFromFolders: Turn folder names into tags
+  summarize: Also generate AI summaries (a second API call per bookmark)
+  delayLabel: Pause between bookmarks
+  delayFast: 0.5s — fastest, more likely to hit rate limits
+  delayNormal: 1.5s — recommended
+  delaySlow: 4s — gentle, good for very large imports
+  retryHelp:
+    Rate limits and dropped connections are retried with backoff. Running out of credits, a
+    rejected key, a destination that cannot be found, or five failures in a row stops the
+    whole run.
+  running: Importing
+  cancelled: Cancelled
+  finished: Finished
+  progressLabel: Bookmarks processed
+  processed: processed
+  savedCount: saved
+  failedCount: failed
+  skippedCount: skipped
+  nowSaving: 'Now saving: $1'
+  # $1 how many failures are listed, $2 how many there were in total.
+  failuresTruncated: Showing the last $1 of $2 failures.
+  cancelButton: Cancel import
+  starting: Starting…
+  startButton:
+    1: Import 1 bookmark
+    n: Import $1 bookmarks
+  clearResults: Clear results
+
+# The error boundary every page is wrapped in. $1 is the surface that crashed,
+# e.g. "popup", so a bug report says which one.
+crash:
+  title: Something broke
+  help: The $1 hit an error and stopped rendering. Your saved files are not affected.
+  tryAgain: Try again

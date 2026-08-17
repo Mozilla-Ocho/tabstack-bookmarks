@@ -13,6 +13,10 @@ pnpm dev:firefox # or pnpm dev for Chrome
 `AGENTS.md` documents the architecture and the invariants that are easy to break —
 please read it before changing anything in `src/lib/`. It is short.
 
+User-visible text goes in `locales/en.yml`, never inline in a component. Run
+`pnpm exec wxt prepare` after adding a key so the types know about it. Translations are
+welcome as a `locales/<code>.yml` copy of that file.
+
 ## Before opening a pull request
 
 ```bash

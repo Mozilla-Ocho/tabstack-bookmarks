@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { browser } from '#imports';
+import { i18n } from '#i18n';
 import type { BookmarkFolder } from '@/src/lib/bookmarks';
 import { DEFAULT_IMPORT_OPTIONS, type ImportOptions } from '@/src/lib/importQueue';
 import { parseTags } from '@/src/lib/markdown';
@@ -11,10 +12,10 @@ import { isErrorReply, type ImportProgress, type ImportUpdate } from '@/src/lib/
 import { configErrors, getSettings, type Settings } from '@/src/lib/settings';
 
 const DELAYS = [
-  { ms: 500, label: '0.5s — fastest, more likely to hit rate limits' },
-  { ms: 1500, label: '1.5s — recommended' },
-  { ms: 4000, label: '4s — gentle, good for very large imports' },
-];
+  { ms: 500, key: 'import.delayFast' },
+  { ms: 1500, key: 'import.delayNormal' },
+  { ms: 4000, key: 'import.delaySlow' },
+] as const;
 
 export function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -79,7 +80,7 @@ export function App() {
     // depending on the whole object is cheaper than keeping a subset in sync.
   }, [settings, options, tagInput]);
 
-  if (!settings) return <div className="options">Loading…</div>;
+  if (!settings) return <div className="options">{i18n.t('common.loading')}</div>;
 
   const problems = configErrors(settings);
   const running = Boolean(progress?.running);
@@ -112,18 +113,14 @@ export function App() {
       <header>
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <h1>Import existing bookmarks</h1>
+          <h1>{i18n.t('import.title')}</h1>
         </div>
-        <p className="help">
-          Every selected bookmark goes through Tabstack and lands in your configured
-          destination — one API call per bookmark, so this costs credits. The run keeps
-          going in the background; you can close this tab.
-        </p>
+        <p className="help">{i18n.t('import.help')}</p>
       </header>
 
       {failure && (
         <div className="status err" role="alert">
-          The extension's background page reported: {failure}
+          {i18n.t('import.backgroundError', [failure])}
         </div>
       )}
 
@@ -131,15 +128,15 @@ export function App() {
         <div className="status err">
           {problems.join(' ')}{' '}
           <button className="link" onClick={() => void browser.runtime.openOptionsPage()}>
-            Open options
+            {i18n.t('common.openOptions')}
           </button>
         </div>
       )}
 
       <section>
-        <h2>What to import</h2>
+        <h2>{i18n.t('import.whatHeading')}</h2>
         <div className="field">
-          <label htmlFor="folder">Folder</label>
+          <label htmlFor="folder">{i18n.t('import.folderLabel')}</label>
           <select
             id="folder"
             value={options.folderId ?? ''}
@@ -148,11 +145,14 @@ export function App() {
               setOptions({ ...options, folderId: e.target.value || undefined })
             }
           >
-            <option value="">All bookmarks</option>
+            <option value="">{i18n.t('import.allBookmarks')}</option>
             {folders.map((folder) => (
               <option key={folder.id} value={folder.id}>
                 {' '.repeat(folder.depth * 2)}
-                {folder.path.split('/').at(-1)} ({folder.count})
+                {i18n.t('import.folderOption', [
+                  folder.path.split('/').at(-1) ?? '',
+                  String(folder.count),
+                ])}
               </option>
             ))}
           </select>
@@ -165,11 +165,11 @@ export function App() {
             disabled={running}
             onChange={(e) => setOptions({ ...options, skipSaved: e.target.checked })}
           />
-          Skip bookmarks this extension already saved
+          {i18n.t('import.skipSaved')}
         </label>
 
         <div className="field">
-          <label htmlFor="limit">Stop after (blank = no limit)</label>
+          <label htmlFor="limit">{i18n.t('import.limitLabel')}</label>
           <input
             id="limit"
             type="number"
@@ -183,23 +183,21 @@ export function App() {
               })
             }
           />
-          <p className="help">
-            Start with 5–10 to see what the output looks like before committing credits.
-          </p>
+          <p className="help">{i18n.t('import.limitHelp')}</p>
         </div>
 
         {plan && (
           <p className="help">
-            {plan.count} bookmark{plan.count === 1 ? '' : 's'} will be imported
-            {plan.skipped > 0 && `, ${plan.skipped} skipped as already saved`}.
+            {i18n.t('import.planned', plan.count)}
+            {plan.skipped > 0 && i18n.t('import.plannedSkipped', [String(plan.skipped)])}.
           </p>
         )}
       </section>
 
       <section>
-        <h2>How to import</h2>
+        <h2>{i18n.t('import.howHeading')}</h2>
         <div className="field">
-          <label htmlFor="tags">Tags on every imported bookmark</label>
+          <label htmlFor="tags">{i18n.t('import.tagsLabel')}</label>
           <input
             id="tags"
             value={tagInput}
@@ -217,7 +215,7 @@ export function App() {
               setOptions({ ...options, tagsFromFolders: e.target.checked })
             }
           />
-          Turn folder names into tags
+          {i18n.t('import.tagsFromFolders')}
         </label>
 
         <label className="checkbox">
@@ -227,11 +225,11 @@ export function App() {
             disabled={running}
             onChange={(e) => setOptions({ ...options, summarize: e.target.checked })}
           />
-          Also generate AI summaries (a second API call per bookmark)
+          {i18n.t('import.summarize')}
         </label>
 
         <div className="field">
-          <label htmlFor="delay">Pause between bookmarks</label>
+          <label htmlFor="delay">{i18n.t('import.delayLabel')}</label>
           <select
             id="delay"
             value={options.delayMs}
@@ -240,28 +238,30 @@ export function App() {
           >
             {DELAYS.map((delay) => (
               <option key={delay.ms} value={delay.ms}>
-                {delay.label}
+                {i18n.t(delay.key)}
               </option>
             ))}
           </select>
-          <p className="help">
-            Rate limits and dropped connections are retried with backoff. Running out of
-            credits, a rejected key, a destination that cannot be found, or five failures
-            in a row stops the whole run.
-          </p>
+          <p className="help">{i18n.t('import.retryHelp')}</p>
         </div>
       </section>
 
       {progress && progress.total > 0 && (
         <section>
-          <h2>{running ? 'Importing' : progress.cancelled ? 'Cancelled' : 'Finished'}</h2>
+          <h2>
+            {running
+              ? i18n.t('import.running')
+              : progress.cancelled
+                ? i18n.t('import.cancelled')
+                : i18n.t('import.finished')}
+          </h2>
           <div
             className="bar"
             role="progressbar"
             aria-valuenow={progress.index}
             aria-valuemin={0}
             aria-valuemax={progress.total}
-            aria-label="Bookmarks processed"
+            aria-label={i18n.t('import.progressLabel')}
           >
             <span style={{ width: `${percent}%` }} />
           </div>
@@ -270,22 +270,22 @@ export function App() {
               <strong>
                 {progress.index}/{progress.total}
               </strong>{' '}
-              processed
+              {i18n.t('import.processed')}
             </span>
             <span>
-              <strong>{progress.saved}</strong> saved
+              <strong>{progress.saved}</strong> {i18n.t('import.savedCount')}
             </span>
             <span>
-              <strong>{failed}</strong> failed
+              <strong>{failed}</strong> {i18n.t('import.failedCount')}
             </span>
             {progress.skipped > 0 && (
               <span>
-                <strong>{progress.skipped}</strong> skipped
+                <strong>{progress.skipped}</strong> {i18n.t('import.skippedCount')}
               </span>
             )}
           </div>
           {running && progress.currentTitle && (
-            <p className="help">Now saving: {progress.currentTitle}</p>
+            <p className="help">{i18n.t('import.nowSaving', [progress.currentTitle])}</p>
           )}
           {progress.abortReason && (
             <div className="status err">{progress.abortReason}</div>
@@ -295,7 +295,7 @@ export function App() {
             <>
               {failed > listed && (
                 <p className="help">
-                  Showing the last {listed} of {failed} failures.
+                  {i18n.t('import.failuresTruncated', [String(listed), String(failed)])}
                 </p>
               )}
               <ul className="failures">
@@ -325,7 +325,7 @@ export function App() {
               )
             }
           >
-            Cancel import
+            {i18n.t('import.cancelButton')}
           </button>
         ) : (
           <button
@@ -333,7 +333,9 @@ export function App() {
             onClick={() => void start()}
             disabled={busy || problems.length > 0 || !plan?.count}
           >
-            {busy ? 'Starting…' : `Import ${plan?.count ?? 0} bookmarks`}
+            {busy
+              ? i18n.t('import.starting')
+              : i18n.t('import.startButton', plan?.count ?? 0)}
           </button>
         )}
         {done && (
@@ -343,11 +345,11 @@ export function App() {
               setProgress(null);
             }}
           >
-            Clear results
+            {i18n.t('import.clearResults')}
           </button>
         )}
         <button className="link" onClick={() => void browser.runtime.openOptionsPage()}>
-          Options
+          {i18n.t('common.options')}
         </button>
       </div>
     </div>

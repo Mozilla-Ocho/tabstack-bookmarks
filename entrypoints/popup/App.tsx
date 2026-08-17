@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
+import { i18n } from '#i18n';
 import { BACKENDS } from '@/src/lib/backends';
 import { parseTags, renderFilename } from '@/src/lib/markdown';
 import {
@@ -132,7 +133,7 @@ export function App() {
   if (!tab || !settings) {
     return (
       <div className="popup">
-        <p className="muted">Loading…</p>
+        <p className="muted">{i18n.t('common.loading')}</p>
       </div>
     );
   }
@@ -153,7 +154,7 @@ export function App() {
       <header>
         <div className="brand">
           <span className="brand-mark" aria-hidden="true" />
-          <h1>Save to Tabstack</h1>
+          <h1>{i18n.t('popup.title')}</h1>
         </div>
         <span className="badge">{BACKENDS[settings.backend].shortLabel}</span>
       </header>
@@ -162,15 +163,13 @@ export function App() {
         <div className="status err">
           {problems.join(' ')}{' '}
           <button className="link" onClick={() => void browser.runtime.openOptionsPage()}>
-            Open options
+            {i18n.t('common.openOptions')}
           </button>
         </div>
       )}
 
       {!isSaveableUrl(tab.url) && (
-        <div className="status err">
-          This page is not an http(s) URL, so it cannot be saved.
-        </div>
+        <div className="status err">{i18n.t('popup.notHttp')}</div>
       )}
 
       {record && (
@@ -179,13 +178,16 @@ export function App() {
           role="status"
           aria-live="polite"
         >
-          {record.status === 'extracting' && 'Extracting markdown via Tabstack…'}
-          {record.status === 'storing' && 'Storing markdown…'}
+          {record.status === 'extracting' && i18n.t('popup.extracting')}
+          {record.status === 'storing' && i18n.t('popup.storing')}
           {saved && (
             <>
-              {record.indexed ? 'Saved earlier to ' : 'Saved to '}
+              {record.indexed ? i18n.t('popup.savedEarlierTo') : i18n.t('popup.savedTo')}
               <code>{record.location ?? record.path}</code>
-              {record.indexed && ` on ${new Date(record.updatedAt).toLocaleDateString()}`}
+              {record.indexed &&
+                ` ${i18n.t('popup.savedOn', [
+                  new Date(record.updatedAt).toLocaleDateString(),
+                ])}`}
               {record.bytes
                 ? ` · ${Math.max(1, Math.round(record.bytes / 1024))} KB`
                 : ''}
@@ -193,7 +195,7 @@ export function App() {
                 <>
                   {' · '}
                   <a href={record.link} target="_blank" rel="noreferrer">
-                    view
+                    {i18n.t('popup.view')}
                   </a>
                 </>
               )}
@@ -201,7 +203,9 @@ export function App() {
           )}
           {record.status === 'error' && record.error}
           {record.summaryError && (
-            <div className="muted">Summary skipped: {record.summaryError}</div>
+            <div className="muted">
+              {i18n.t('popup.summarySkipped', [record.summaryError])}
+            </div>
           )}
         </div>
       )}
@@ -209,23 +213,23 @@ export function App() {
       {record?.summary && <p className="summary">{record.summary}</p>}
 
       <div className="field">
-        <label htmlFor="title">Title</label>
+        <label htmlFor="title">{i18n.t('popup.titleLabel')}</label>
         <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
 
       <div className="field">
-        <label htmlFor="tags">Tags (comma separated)</label>
+        <label htmlFor="tags">{i18n.t('popup.tagsLabel')}</label>
         <input
           id="tags"
           value={tags}
-          placeholder="reading, research"
+          placeholder={i18n.t('popup.tagsPlaceholder')}
           onChange={(e) => setTags(e.target.value)}
         />
       </div>
 
       {showDetails && (
         <div className="field">
-          <label htmlFor="note">Note</label>
+          <label htmlFor="note">{i18n.t('popup.noteLabel')}</label>
           <textarea id="note" value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
       )}
@@ -242,7 +246,7 @@ export function App() {
           checked={summarize}
           onChange={(e) => setSummarize(e.target.checked)}
         />
-        Summarize with AI
+        {i18n.t('popup.summarize')}
       </label>
 
       {saved && (
@@ -252,7 +256,7 @@ export function App() {
             checked={updateInPlace}
             onChange={(e) => setUpdateInPlace(e.target.checked)}
           />
-          Overwrite the same file when re-saving
+          {i18n.t('popup.overwrite')}
         </label>
       )}
 
@@ -262,14 +266,18 @@ export function App() {
           onClick={onSave}
           disabled={busy || !isSaveableUrl(tab.url) || problems.length > 0}
         >
-          {busy ? 'Saving…' : saved ? 'Re-save' : 'Save'}
+          {busy
+            ? i18n.t('popup.saving')
+            : saved
+              ? i18n.t('popup.resave')
+              : i18n.t('popup.save')}
         </button>
         <button onClick={() => setShowDetails((v) => !v)}>
-          {showDetails ? 'Less' : 'Note'}
+          {showDetails ? i18n.t('popup.lessButton') : i18n.t('popup.noteButton')}
         </button>
         <span className="grow" />
         <button className="link" onClick={() => void browser.runtime.openOptionsPage()}>
-          Options
+          {i18n.t('common.options')}
         </button>
       </footer>
     </div>
