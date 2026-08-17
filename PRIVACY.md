@@ -89,4 +89,4 @@ notes; the date above will be updated.
 
 ## Contact
 
-Issues and questions: <https://github.com/JustSteveKing/tabstack-bookmarks/issues>
+Issues and questions: <https://github.com/Mozilla-Ocho/tabstack-bookmarks/issues>

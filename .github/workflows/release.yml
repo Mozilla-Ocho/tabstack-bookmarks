@@ -56,6 +56,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: packages
+          # WXT builds into `.output`, and upload-artifact skips dot-prefixed
+          # paths unless told otherwise — which looks exactly like "the zips were
+          # never built". They were; the first real CI run said so.
+          include-hidden-files: true
           path: .output/*.zip
           if-no-files-found: error
 

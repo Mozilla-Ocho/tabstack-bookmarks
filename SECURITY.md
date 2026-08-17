@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Report privately through GitHub's
-[private vulnerability reporting](https://github.com/JustSteveKing/tabstack-bookmarks/security/advisories/new)
+[private vulnerability reporting](https://github.com/Mozilla-Ocho/tabstack-bookmarks/security/advisories/new)
 on this repository. Please do not open a public issue for anything exploitable.
 
 Include the extension version (from `about:addons` or `chrome://extensions`), the browser

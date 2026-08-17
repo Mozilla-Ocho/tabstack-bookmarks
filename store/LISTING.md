@@ -7,7 +7,7 @@ Screenshots live in `store/screenshots/`.
 
 - **Name:** Tabstack Bookmarks
 - **Category:** Productivity (AMO: Bookmarks / Tabs)
-- **Homepage:** https://github.com/JustSteveKing/tabstack-bookmarks
+- **Homepage:** https://github.com/Mozilla-Ocho/tabstack-bookmarks
 - **Privacy policy:** link to `PRIVACY.md` in the repository (raw or Pages URL)
 - **Support:** repository issues
 - **License:** MPL-2.0

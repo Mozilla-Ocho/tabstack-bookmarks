@@ -20,7 +20,7 @@ export default defineConfig({
     default_locale: 'en',
     // MV3's `author` is { email } — left out rather than publishing a personal
     // address; the store listings carry developer identity anyway.
-    homepage_url: 'https://github.com/JustSteveKing/tabstack-bookmarks',
+    homepage_url: 'https://github.com/Mozilla-Ocho/tabstack-bookmarks',
     permissions: [
       'storage',
       'activeTab',
