@@ -11,12 +11,14 @@ vi.mock('./bookmarks', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./bookmarks')>()),
   collectBookmarks: vi.fn(),
 }));
+vi.mock('./tabs', () => ({ collectTabs: vi.fn() }));
 vi.mock('./save', () => ({
   runSave: vi.fn(),
   isSaveableUrl: (url?: string) => /^https?:\/\//.test(url ?? ''),
 }));
 
 import { collectBookmarks } from './bookmarks';
+import { collectTabs } from './tabs';
 import {
   DEFAULT_IMPORT_OPTIONS,
   getJob,
@@ -30,6 +32,7 @@ import { runSave } from './save';
 import { rememberSave } from './saveStore';
 
 const collect = vi.mocked(collectBookmarks);
+const collectOpenTabs = vi.mocked(collectTabs);
 const save = vi.mocked(runSave);
 
 const ITEMS: BookmarkItem[] = [
@@ -58,6 +61,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   collect.mockResolvedValue(ITEMS);
+  collectOpenTabs.mockResolvedValue([]);
   save.mockImplementation(async (request: SaveRequest) =>
     record({ url: request.url, title: request.title }),
   );
@@ -151,6 +155,66 @@ describe('planImport', () => {
   it('passes the folder scope through', async () => {
     await planImport({ ...OPTIONS, folderId: 'reading' });
     expect(collect).toHaveBeenCalledWith('reading');
+  });
+});
+
+describe('planning from the open tabs', () => {
+  /** The same queue, a different list: no second pipeline for tabs. */
+  it('plans from tabs instead of bookmarks when asked', async () => {
+    collectOpenTabs.mockResolvedValue([
+      { id: '1', url: 'https://ex.com/tab-a', title: 'Tab A', folders: [] },
+      { id: '2', url: 'https://ex.com/tab-b', title: 'Tab B', folders: [] },
+    ]);
+
+    const plan = await planImport({ ...OPTIONS, source: 'tabs' });
+
+    expect(plan.items.map((i) => i.title)).toEqual(['Tab A', 'Tab B']);
+    expect(collect).not.toHaveBeenCalled();
+  });
+
+  it('passes the window scope through, and never a folder', async () => {
+    await planImport({ ...OPTIONS, source: 'tabs', windowId: 42 });
+    expect(collectOpenTabs).toHaveBeenCalledWith({ allWindows: undefined, windowId: 42 });
+
+    await planImport({
+      ...OPTIONS,
+      source: 'tabs',
+      allWindows: true,
+      folderId: 'ignored',
+    });
+    expect(collectOpenTabs).toHaveBeenLastCalledWith({
+      allWindows: true,
+      windowId: undefined,
+    });
+  });
+
+  it('skips tabs on pages already saved, like bookmarks', async () => {
+    collectOpenTabs.mockResolvedValue([
+      { id: '1', url: 'https://ex.com/saved', title: 'Saved', folders: [] },
+      { id: '2', url: 'https://ex.com/new', title: 'New', folders: [] },
+    ]);
+    await rememberSave(record({ url: 'https://ex.com/saved', path: 'saved.md' }));
+
+    const plan = await planImport({ ...OPTIONS, source: 'tabs', skipSaved: true });
+
+    expect(plan.items.map((i) => i.title)).toEqual(['New']);
+    expect(plan.skipped).toBe(1);
+  });
+
+  it('runs tabs through the same save pipeline', async () => {
+    collectOpenTabs.mockResolvedValue([
+      { id: '1', url: 'https://ex.com/tab-a', title: 'Tab A', folders: [] },
+    ]);
+
+    await startImport({ ...OPTIONS, source: 'tabs', tags: ['session'] });
+    const job = await drain();
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(save.mock.calls[0]![0]).toMatchObject({
+      url: 'https://ex.com/tab-a',
+      tags: ['session'],
+    });
+    expect(job).toMatchObject({ saved: 1, running: false });
   });
 });
 

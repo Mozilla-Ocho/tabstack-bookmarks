@@ -65,6 +65,17 @@ The list of parameters is curated and conservative: `utm_*`, click ids, newslett
 not add `?id=`, `?v=`, `?page=`, `?q=` or `?si=` — stripping one of those saves a different
 page, which is worse than saving one twice.
 
+**One queue, whatever the list is made of.** `importQueue` drains bookmarks and open tabs
+alike: `ImportOptions.source` picks the collector, and `collectTabs()` returns the same
+`BookmarkItem` shape. Persisted progress, backoff, cancel and resume are the hard parts and
+they are already written — a second queue for tabs would be a second set of those bugs.
+
+**Only a page knows which window it means.** `collectTabs()` takes an explicit `windowId`,
+supplied by the import page from `tabs.getCurrent()`. The queue runs in the background, which
+has no window: `currentWindow: true` there resolves to the _focused_ window and matches nothing
+at all when the browser is not focused. Driving a real Chrome found exactly that — zero tabs
+collected while the page could see four.
+
 **`savedIndex` is the library, not just a dedupe set.** `searchSaved()` backs the library
 page, so an entry is something a user can see, re-save and delete — `forgetSaved()` is a
 user-visible action now, not only internal bookkeeping.

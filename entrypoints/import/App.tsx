@@ -6,7 +6,11 @@ import { useEffect, useState } from 'react';
 import { browser } from '#imports';
 import { i18n } from '#i18n';
 import type { BookmarkFolder } from '@/src/lib/bookmarks';
-import { DEFAULT_IMPORT_OPTIONS, type ImportOptions } from '@/src/lib/importQueue';
+import {
+  DEFAULT_IMPORT_OPTIONS,
+  type ImportOptions,
+  type ImportSource,
+} from '@/src/lib/importQueue';
 import { parseTags } from '@/src/lib/markdown';
 import { isErrorReply, type ImportProgress, type ImportUpdate } from '@/src/lib/messages';
 import { configErrors, getSettings, type Settings } from '@/src/lib/settings';
@@ -26,6 +30,11 @@ export function App() {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  /**
+   * Which window "tabs I have open" means. The background cannot work this out —
+   * it has no window — so the page that asked has to say.
+   */
+  const [windowId, setWindowId] = useState<number | undefined>(undefined);
 
   /** Unwraps a background reply, keeping handler errors out of the UI state. */
   const unwrap = <T,>(reply: unknown): T | null => {
@@ -38,6 +47,8 @@ export function App() {
 
   useEffect(() => {
     (async () => {
+      const self = await browser.tabs.getCurrent();
+      setWindowId(self?.windowId);
       const loaded = await getSettings();
       setSettings(loaded);
       setOptions((current) => ({ ...current, summarize: loaded.summarize }));
@@ -68,7 +79,7 @@ export function App() {
     void browser.runtime
       .sendMessage({
         type: 'planImport',
-        options: { ...options, tags: parseTags(tagInput) },
+        options: { ...options, tags: parseTags(tagInput), windowId },
       })
       .then((reply) => {
         if (!cancelled) setPlan(unwrap<{ count: number; skipped: number }>(reply));
@@ -78,7 +89,7 @@ export function App() {
     };
     // Re-planning on any option change is a local count plus one message, so
     // depending on the whole object is cheaper than keeping a subset in sync.
-  }, [settings, options, tagInput]);
+  }, [settings, options, tagInput, windowId]);
 
   if (!settings) return <div className="options">{i18n.t('common.loading')}</div>;
 
@@ -89,7 +100,7 @@ export function App() {
     ? Math.round((progress.index / progress.total) * 100)
     : 0;
   // The listed failures are capped; the count is not, so read it separately.
-  const failed = progress?.failed ?? progress?.failures.length ?? 0;
+  const failed = progress?.failed ?? 0;
   const listed = progress?.failures.length ?? 0;
 
   async function start() {
@@ -99,7 +110,7 @@ export function App() {
         unwrap<ImportProgress>(
           await browser.runtime.sendMessage({
             type: 'startImport',
-            options: { ...options, tags: parseTags(tagInput) },
+            options: { ...options, tags: parseTags(tagInput), windowId },
           }),
         ),
       );
@@ -136,27 +147,56 @@ export function App() {
       <section>
         <h2>{i18n.t('import.whatHeading')}</h2>
         <div className="field">
-          <label htmlFor="folder">{i18n.t('import.folderLabel')}</label>
+          <label htmlFor="source">{i18n.t('import.sourceLabel')}</label>
           <select
-            id="folder"
-            value={options.folderId ?? ''}
+            id="source"
+            value={options.source}
             disabled={running}
             onChange={(e) =>
-              setOptions({ ...options, folderId: e.target.value || undefined })
+              setOptions({ ...options, source: e.target.value as ImportSource })
             }
           >
-            <option value="">{i18n.t('import.allBookmarks')}</option>
-            {folders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {' '.repeat(folder.depth * 2)}
-                {i18n.t('import.folderOption', [
-                  folder.path.split('/').at(-1) ?? '',
-                  String(folder.count),
-                ])}
-              </option>
-            ))}
+            <option value="bookmarks">{i18n.t('import.sourceBookmarks')}</option>
+            <option value="tabs">{i18n.t('import.sourceTabs')}</option>
           </select>
         </div>
+
+        {options.source === 'tabs' && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={options.allWindows ?? false}
+              disabled={running}
+              onChange={(e) => setOptions({ ...options, allWindows: e.target.checked })}
+            />
+            {i18n.t('import.allWindows')}
+          </label>
+        )}
+
+        {options.source === 'bookmarks' && (
+          <div className="field">
+            <label htmlFor="folder">{i18n.t('import.folderLabel')}</label>
+            <select
+              id="folder"
+              value={options.folderId ?? ''}
+              disabled={running}
+              onChange={(e) =>
+                setOptions({ ...options, folderId: e.target.value || undefined })
+              }
+            >
+              <option value="">{i18n.t('import.allBookmarks')}</option>
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {' '.repeat(folder.depth * 2)}
+                  {i18n.t('import.folderOption', [
+                    folder.path.split('/').at(-1) ?? '',
+                    String(folder.count),
+                  ])}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <label className="checkbox">
           <input
@@ -206,17 +246,19 @@ export function App() {
           />
         </div>
 
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={options.tagsFromFolders}
-            disabled={running}
-            onChange={(e) =>
-              setOptions({ ...options, tagsFromFolders: e.target.checked })
-            }
-          />
-          {i18n.t('import.tagsFromFolders')}
-        </label>
+        {options.source === 'bookmarks' && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={options.tagsFromFolders}
+              disabled={running}
+              onChange={(e) =>
+                setOptions({ ...options, tagsFromFolders: e.target.checked })
+              }
+            />
+            {i18n.t('import.tagsFromFolders')}
+          </label>
+        )}
 
         <label className="checkbox">
           <input

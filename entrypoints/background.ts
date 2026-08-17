@@ -199,7 +199,7 @@ async function broadcastImport(progress: ImportProgress): Promise<void> {
 async function notifyImport(job: ImportJob): Promise<void> {
   if (job.cancelled && job.saved === 0) return;
   // The stored list is capped; the count is not.
-  const failed = job.failed ?? job.failures.length;
+  const failed = job.failed;
   try {
     await browser.notifications.create(IMPORT_NOTIFICATION, {
       type: 'basic',

@@ -246,11 +246,11 @@ options:
   # $1 is the keyboard shortcut, rendered as keys.
   shortcutHelp: $1 saves the active tab without opening the popup.
 
-  existingHeading: Existing bookmarks
+  existingHeading: Bulk saving
   existingHelp:
-    Convert bookmarks you already have into markdown, folder by folder. Runs in the
-    background, one bookmark at a time.
-  openImport: Open bookmark import
+    Convert bookmarks you already have — or every tab you have open — into markdown. Runs
+    in the background, one page at a time.
+  openImport: Save pages in bulk
   openLibrary: Browse saved pages
 
   recentHeading: Recent saves
@@ -301,30 +301,34 @@ library:
     Forget that $1 was saved? The file itself is left alone, but a future import will save
     the page again.
 
-# The bookmark import page.
+# The bulk-save page: bookmarks you already have, or the tabs you have open.
 import:
-  title: Import existing bookmarks
-  help: Every selected bookmark goes through Tabstack and lands in your configured
-    destination — one API call per bookmark, so this costs credits. The run keeps going in
-    the background; you can close this tab.
+  title: Save pages in bulk
+  help: Bookmarks you already have, or the tabs you have open. Each one goes through
+    Tabstack and lands in your configured destination — one API call per page, so this
+    costs credits. The run keeps going in the background; you can close this tab.
   backgroundError: "The extension's background page reported: $1"
-  whatHeading: What to import
+  whatHeading: What to save
+  sourceLabel: Pages to save
+  sourceBookmarks: Bookmarks
+  sourceTabs: Tabs I have open
+  allWindows: Every window, not just this one
   folderLabel: Folder
   allBookmarks: All bookmarks
   # $1 is the folder name, $2 how many bookmarks are in it.
   folderOption: $1 ($2)
-  skipSaved: Skip bookmarks this extension already saved
+  skipSaved: Skip pages this extension already saved
   limitLabel: Stop after (blank = no limit)
   limitHelp: Start with 5–10 to see what the output looks like before committing credits.
   planned:
-    1: 1 bookmark will be imported
-    n: $1 bookmarks will be imported
+    1: 1 page will be saved
+    n: $1 pages will be saved
   plannedSkipped: ', $1 skipped as already saved'
-  howHeading: How to import
-  tagsLabel: Tags on every imported bookmark
+  howHeading: How to save
+  tagsLabel: Tags on every page saved
   tagsFromFolders: Turn folder names into tags
-  summarize: Also generate AI summaries (a second API call per bookmark)
-  delayLabel: Pause between bookmarks
+  summarize: Also generate AI summaries (a second API call per page)
+  delayLabel: Pause between pages
   delayFast: 0.5s — fastest, more likely to hit rate limits
   delayNormal: 1.5s — recommended
   delaySlow: 4s — gentle, good for very large imports
@@ -335,7 +339,7 @@ import:
   running: Importing
   cancelled: Cancelled
   finished: Finished
-  progressLabel: Bookmarks processed
+  progressLabel: Pages processed
   processed: processed
   savedCount: saved
   failedCount: failed
@@ -346,8 +350,8 @@ import:
   cancelButton: Cancel import
   starting: Starting…
   startButton:
-    1: Import 1 bookmark
-    n: Import $1 bookmarks
+    1: Save 1 page
+    n: Save $1 pages
   clearResults: Clear results
 
 # The error boundary every page is wrapped in. $1 is the surface that crashed,

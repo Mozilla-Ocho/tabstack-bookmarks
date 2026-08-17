@@ -56,6 +56,10 @@ translated listing needs only a `locales/<code>.yml`.
 > Search everything you have saved by title, URL or file path. Re-save a page that has
 > changed, straight over the file you saved before.
 >
+> **Clear the decks**
+> Twenty tabs open since Tuesday? Save the lot — this window or all of them — and close them
+> knowing the pages are yours.
+>
 > **Bring your existing bookmarks**
 > Import the bookmarks you already have, a folder at a time. Folder names become tags,
 > pages you already saved are skipped, and the run continues in the background — close the

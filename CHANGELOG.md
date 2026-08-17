@@ -11,6 +11,10 @@ All notable changes to this extension. Format follows
 - A library page: everything ever saved, searchable by title, URL or the path it landed at,
   with per-row re-save and forget. The durable index held up to 50,000 entries and nothing
   could see past the thirty most recent. Reachable from the options page and the popup.
+- The bulk-save page will work through the tabs you have open, not just bookmarks — this
+  window or every window. A page open in twice is saved once, `about:` and `chrome://` tabs are
+  left out, and it runs on the same queue as an import, so progress, backoff, cancel and resume
+  come for free.
 - Tracking parameters are stripped from a URL before it is extracted, written, stored or
   deduped. The same page arriving via a newsletter, a tweet and an ad was three index keys,
   three extractions and three rows in the library; it is now one. The list is conservative —

@@ -18,7 +18,7 @@ Built with [WXT](https://wxt.dev), so one source tree builds for Firefox and Chr
 
 - [How it works](#how-it-works) · [Install](#install) · [First run](#first-run)
 - [Saving a page](#saving-a-page) · [What gets written](#what-gets-written)
-- [Destinations](#destinations) · [Summaries](#summaries) · [Import](#importing-bookmarks-you-already-have)
+- [Destinations](#destinations) · [Summaries](#summaries) · [Bulk saving](#saving-a-lot-of-pages-at-once)
 - [Browsing what you saved](#browsing-what-you-saved)
 - [Settings](#settings) · [Privacy](#privacy) · [Development](#development)
 
@@ -139,15 +139,21 @@ The summary runs _alongside_ extraction rather than after it, and it can never c
 the page: if the summary call fails, the save still completes and the record notes why.
 The popup has a per-save **Summarize with AI** checkbox that overrides the setting once.
 
-## Importing bookmarks you already have
+## Saving a lot of pages at once
 
-Options → **Open bookmark import**. Pick a folder (each shows how many saveable bookmarks
-it holds), then:
+Options → **Save pages in bulk**. Choose what to work through:
 
-- **Skip already saved** — leaves out URLs saved before.
+- **Bookmarks** — pick a folder; each shows how many saveable bookmarks it holds.
+- **Tabs I have open** — this window, or every window. A page open in two tabs is saved
+  once, and `about:`/`chrome://` tabs are left out.
+
+Then:
+
+- **Skip already saved** — leaves out pages saved before.
 - **Stop after N** — try 5–10 first and look at the output before spending credits on a
   thousand pages.
-- **Folder names as tags** — `Toolbar/Reading` becomes tags `Toolbar` and `Reading`.
+- **Folder names as tags** — `Toolbar/Reading` becomes tags `Toolbar` and `Reading`
+  (bookmarks only; a tab has no folder).
 - **Pause between bookmarks** — 0.5s / 1.5s / 4s.
 
 The run lives in the background: close the tab, keep browsing, it carries on one bookmark
@@ -238,7 +244,7 @@ entrypoints/
   background.ts     message router, keyboard command, context menus, badge, notifications
   popup/            one-click save, editable title/tags/note
   options/          API key, destination, filename template, recent saves
-  import/           bulk import of existing bookmarks
+  import/           bulk saving: bookmarks, or the tabs you have open
   library/          search, re-save and forget what has been saved
 locales/
   en.yml            every string a user reads; a translation is one more file
@@ -257,6 +263,7 @@ src/lib/
   savedIndex.ts     durable url → {path, backend, savedAt} index, one key per URL
   retryQueue.ts     failed saves waiting for another attempt, with backoff
   bookmarks.ts      bookmark tree → flat saveable items, folder counts
+  tabs.ts           open tabs → the same items, deduped by canonical URL
   importQueue.ts    persisted import job: retry, backoff, cancel, resume
   permissions.ts    runtime host-permission checks
   backends/         download.ts, github.ts, obsidian.ts, types.ts

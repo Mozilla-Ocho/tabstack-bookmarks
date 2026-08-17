@@ -321,7 +321,7 @@ describe('recent saves', () => {
 
   it('opens the import page in a tab', async () => {
     await open();
-    fireEvent.click(screen.getByRole('button', { name: 'Open bookmark import' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save pages in bulk' }));
     expect(fakeBrowser.tabs.create).toHaveBeenCalled();
   });
 

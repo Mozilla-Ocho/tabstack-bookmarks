@@ -82,17 +82,14 @@ export const DEFAULT_SETTINGS: Settings = {
 const KEY = 'settings';
 
 /**
- * Reshapes an older stored object. Nothing to do yet — version 1 is the first
- * shape — but the seam exists so a future rename has an obvious home, instead of
- * being smuggled into getSettings() as an `if (raw.oldName)`.
+ * Reshapes an older stored object.
+ *
+ * A no-op: version 1 is the only shape there has ever been. The seam exists so a
+ * future rename has an obvious home rather than being smuggled into
+ * `getSettings()` as an `if (raw.oldName)`. Unknown fields — including anything a
+ * newer version wrote — are passed through and survive the merge below.
  */
 function migrate(raw: Partial<Settings>): Partial<Settings> {
-  const from = raw.schemaVersion ?? SCHEMA_VERSION;
-  if (from > SCHEMA_VERSION) {
-    // A newer version of the extension wrote these. Merging defaults over
-    // unknown fields is the safest thing available.
-    return raw;
-  }
   return raw;
 }
 

@@ -22,7 +22,10 @@ function progress(patch: Partial<ImportProgress> = {}): ImportProgress {
     saved: 0,
     skipped: 0,
     failures: [],
+    failed: 0,
+    consecutiveFailures: 0,
     options: {
+      source: 'bookmarks',
       skipSaved: true,
       tagsFromFolders: true,
       tags: [],
@@ -61,6 +64,8 @@ beforeEach(async () => {
     return replies[request.type];
   }) as never;
   fakeBrowser.runtime.openOptionsPage = vi.fn().mockResolvedValue(undefined) as never;
+  // The page tells the background which window it means; the background has none.
+  fakeBrowser.tabs.getCurrent = vi.fn(async () => ({ id: 9, windowId: 77 })) as never;
 });
 
 async function open() {
@@ -75,10 +80,10 @@ describe('planning a run', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText('7 bookmarks will be imported, 3 skipped as already saved.'),
+        screen.getByText('7 pages will be saved, 3 skipped as already saved.'),
       ).toBeTruthy(),
     );
-    expect(screen.getByRole('button', { name: 'Import 7 bookmarks' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Save 7 pages' })).toBeTruthy();
   });
 
   it('offers every bookmark folder with its count', async () => {
@@ -97,9 +102,7 @@ describe('planning a run', () => {
     replies.planImport = { count: 4, skipped: 0 };
     fireEvent.change(screen.getByLabelText('Folder'), { target: { value: 'reading' } });
 
-    await waitFor(() =>
-      expect(screen.getByText('4 bookmarks will be imported.')).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText('4 pages will be saved.')).toBeTruthy());
     expect(sent.filter((m) => m.type === 'planImport').at(-1)?.options).toMatchObject({
       folderId: 'reading',
     });
@@ -110,7 +113,7 @@ describe('planning a run', () => {
     await open();
 
     await waitFor(() => expect(screen.getByText(/API key is missing/)).toBeTruthy());
-    expect(screen.getByRole('button', { name: /^Import/ })).toHaveProperty(
+    expect(screen.getByRole('button', { name: /^Save \d/ })).toHaveProperty(
       'disabled',
       true,
     );
@@ -122,7 +125,7 @@ describe('planning a run', () => {
     await open();
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Import 0 bookmarks' })).toHaveProperty(
+      expect(screen.getByRole('button', { name: 'Save 0 pages' })).toHaveProperty(
         'disabled',
         true,
       ),
@@ -133,20 +136,20 @@ describe('planning a run', () => {
     await configured();
     await open();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /^Import/ })).toBeTruthy(),
+      expect(screen.getByRole('button', { name: /^Save \d/ })).toBeTruthy(),
     );
 
-    fireEvent.change(screen.getByLabelText('Tags on every imported bookmark'), {
+    fireEvent.change(screen.getByLabelText('Tags on every page saved'), {
       target: { value: 'archive, inbox' },
     });
     fireEvent.click(screen.getByLabelText('Turn folder names into tags'));
-    fireEvent.change(screen.getByLabelText('Pause between bookmarks'), {
+    fireEvent.change(screen.getByLabelText('Pause between pages'), {
       target: { value: '4000' },
     });
     fireEvent.change(screen.getByLabelText('Stop after (blank = no limit)'), {
       target: { value: '5' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /^Import/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Save \d/ }));
 
     await waitFor(() => expect(sent.some((m) => m.type === 'startImport')).toBe(true));
     expect(sent.find((m) => m.type === 'startImport')?.options).toMatchObject({
@@ -154,6 +157,65 @@ describe('planning a run', () => {
       tagsFromFolders: false,
       delayMs: 4000,
       limit: 5,
+    });
+  });
+});
+
+describe('choosing what to save', () => {
+  it('asks the background for tabs once tabs are chosen', async () => {
+    await configured();
+    await open();
+    await waitFor(() => expect(sent.some((m) => m.type === 'planImport')).toBe(true));
+
+    replies.planImport = { count: 12, skipped: 0 };
+    fireEvent.change(screen.getByLabelText('Pages to save'), {
+      target: { value: 'tabs' },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save 12 pages' })).toBeTruthy(),
+    );
+    expect(sent.filter((m) => m.type === 'planImport').at(-1)?.options).toMatchObject({
+      source: 'tabs',
+    });
+  });
+
+  /** A tab has no folder, and every window is a question only tabs raise. */
+  it('swaps the folder controls for the window scope', async () => {
+    await configured();
+    await open();
+    expect(screen.getByLabelText('Folder')).toBeTruthy();
+    expect(screen.getByLabelText('Turn folder names into tags')).toBeTruthy();
+    expect(screen.queryByLabelText(/Every window/)).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Pages to save'), {
+      target: { value: 'tabs' },
+    });
+
+    await waitFor(() => expect(screen.getByLabelText(/Every window/)).toBeTruthy());
+    expect(screen.queryByLabelText('Folder')).toBeNull();
+    expect(screen.queryByLabelText('Turn folder names into tags')).toBeNull();
+  });
+
+  it('sends the window scope with the run', async () => {
+    await configured();
+    await open();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^Save \d/ })).toBeTruthy(),
+    );
+
+    fireEvent.change(screen.getByLabelText('Pages to save'), {
+      target: { value: 'tabs' },
+    });
+    fireEvent.click(await screen.findByLabelText(/Every window/));
+    fireEvent.click(screen.getByRole('button', { name: /^Save \d/ }));
+
+    await waitFor(() => expect(sent.some((m) => m.type === 'startImport')).toBe(true));
+    expect(sent.find((m) => m.type === 'startImport')?.options).toMatchObject({
+      source: 'tabs',
+      allWindows: true,
+      // Its own window, so "this window" means something in the background.
+      windowId: 77,
     });
   });
 });

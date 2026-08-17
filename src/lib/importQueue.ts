@@ -6,6 +6,7 @@ import { browser } from '#imports';
 import { i18n } from '#i18n';
 import type { BookmarkItem } from './bookmarks';
 import { collectBookmarks } from './bookmarks';
+import { collectTabs } from './tabs';
 import { isFatalStatus, isRetryableStatus } from './httpError';
 import type { SaveRecord } from './messages';
 import { runSave } from './save';
@@ -13,9 +14,21 @@ import { rememberSave } from './saveStore';
 import { savedUrls } from './savedIndex';
 import { canonicalUrl } from './url';
 
+/** Where a run gets its pages from. */
+export type ImportSource = 'bookmarks' | 'tabs';
+
 export interface ImportOptions {
-  /** Restrict to one folder's subtree; empty means every bookmark. */
+  /** Bookmarks by default; the open tabs are the same job with another list. */
+  source: ImportSource;
+  /** Restrict to one folder's subtree; empty means every bookmark. Bookmarks only. */
   folderId?: string;
+  /** Every window's tabs rather than just this one. Tabs only. */
+  allWindows?: boolean;
+  /**
+   * Which window the page meant by "this one". Tabs only, and the page has to
+   * supply it: the queue runs in the background, which has no window of its own.
+   */
+  windowId?: number;
   /** Skip URLs already saved by the extension. */
   skipSaved: boolean;
   /** Turn enclosing folder names into tags. */
@@ -47,17 +60,10 @@ export interface ImportJob {
   skipped: number;
   /** The most recent failures, capped at `MAX_FAILURES`. See `failed`. */
   failures: ImportFailure[];
-  /**
-   * Every failure, including the ones trimmed out of `failures`. Optional
-   * because jobs stored by earlier versions do not have it; fall back to
-   * `failures.length`.
-   */
-  failed?: number;
-  /**
-   * Failures since the last success. Optional because jobs stored by earlier
-   * versions do not have it; treat a missing value as 0.
-   */
-  consecutiveFailures?: number;
+  /** Every failure, including the ones trimmed out of `failures`. */
+  failed: number;
+  /** Failures since the last success; `MAX_CONSECUTIVE_FAILURES` stops the run. */
+  consecutiveFailures: number;
   options: ImportOptions;
   startedAt: number;
   updatedAt: number;
@@ -67,6 +73,7 @@ export interface ImportJob {
 }
 
 export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
+  source: 'bookmarks',
   skipSaved: true,
   tagsFromFolders: true,
   tags: ['imported'],
@@ -109,7 +116,10 @@ export async function clearJob(): Promise<void> {
 export async function planImport(
   options: ImportOptions,
 ): Promise<{ items: BookmarkItem[]; skipped: number }> {
-  let items = await collectBookmarks(options.folderId);
+  let items =
+    options.source === 'tabs'
+      ? await collectTabs({ allWindows: options.allWindows, windowId: options.windowId })
+      : await collectBookmarks(options.folderId);
   let skipped = 0;
 
   if (options.skipSaved) {
@@ -239,13 +249,13 @@ export async function processJob(
       // Merge onto the stored job, not the snapshot from before the save.
       const latest = (await getJob()) ?? job;
       const ok = record?.status === 'done';
-      const consecutiveFailures = ok ? 0 : (latest.consecutiveFailures ?? 0) + 1;
+      const consecutiveFailures = ok ? 0 : latest.consecutiveFailures + 1;
       job = await putJob({
         ...latest,
         index: latest.index + 1,
         saved: latest.saved + (ok ? 1 : 0),
         consecutiveFailures,
-        failed: (latest.failed ?? latest.failures.length) + (ok ? 0 : 1),
+        failed: latest.failed + (ok ? 0 : 1),
         failures: ok
           ? latest.failures
           : // Newest last, oldest dropped: the tail is what a user reads to work
