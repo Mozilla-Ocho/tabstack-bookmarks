@@ -28,7 +28,7 @@ pnpm compile          # tsc --noEmit
 pnpm lint             # eslint; type-aware, so it needs TypeScript 6.x
 pnpm format           # prettier --write .
 pnpm test             # vitest run
-pnpm test:coverage    # same, with thresholds over src/lib (CI runs this one)
+pnpm test:coverage    # same, with thresholds over src/ and entrypoints/ (CI runs this)
 pnpm build:firefox    # .output/firefox-mv3
 pnpm build            # .output/chrome-mv3
 pnpm dev:firefox      # HMR (see the caveat below)
@@ -211,9 +211,49 @@ Vitest with the `WxtVitest` plugin, which provides `#imports` and `fakeBrowser`.
   asserted.
 - The import queue sleeps between items: drive it with the `drain()` pattern in
   `importQueue.test.ts` (`const p = processJob(); await vi.runAllTimersAsync(); await p`).
-- APIs `fakeBrowser` does not implement (`bookmarks`) get `vi.spyOn(fakeBrowser.bookmarks, …)`.
+- APIs `fakeBrowser` does not implement (`bookmarks`, `commands`, `contextMenus`,
+  `downloads`, `i18n`, `permissions`) have to be supplied. For a method,
+  `fakeBrowser.x.y = vi.fn()`; for an _event_, use the `fakeEvent()` helper in
+  `background.test.ts`, which returns the listeners' own return values from `trigger` the
+  way the real API does.
 - Cover the failure path, not just the happy one. Every backend has tests for 401, an
   unreachable host, and duplicate handling; keep that shape.
+- Give each mocked `fetch` its own `Response`. A body can only be read once, so a shared one
+  fails the second read with a `TypeError` that looks like a network error.
+
+The pages have tests too, in `entrypoints/*/App.test.tsx`. They need a DOM, which is a
+per-file docblock rather than a config-wide default:
+
+```tsx
+/* @vitest-environment happy-dom */
+```
+
+They drive the real component against `fakeBrowser`, with the background's replies stubbed
+through `runtime.sendMessage` — so they cover what a user does (auto-save, re-save in place,
+cancel an import) rather than how it is rendered. `src/testing/setup.ts` unmounts between
+tests; without that, a second `render()` leaves the first one in the document and every
+`getByRole` reports "found multiple elements".
+
+Two things to know when asserting on text:
+
+- **A regex matches loosely.** `/out of credits/` also matches the help paragraph that
+  explains running out of credits stops a run. Assert the exact string when a substring
+  could appear twice.
+- **`getByText` only sees an element's own text nodes**, so a value split by `<br />` or
+  wrapped in `<code>` needs a regex or a parent lookup.
+
+`src/tests/background.test.ts` covers routing through `fakeBrowser.runtime.sendMessage`,
+which implements the real `sendResponse`-plus-`return true` contract: rewrite `route()` as an
+async listener and those tests go `undefined`.
+
+It lives outside `entrypoints/` on purpose. WXT reads every top-level file there as an
+entrypoint and takes the name up to the first dot, so `entrypoints/background.test.ts` is a
+second `background` and the build dies with "Multiple entrypoints with the same name" — while
+the tests still pass, so only a build catches it. Page tests are fine beside their pages,
+because a page entrypoint is its directory's `index.html`.
+
+`pnpm test:coverage` gates `src/` and `entrypoints/` at 85% statements and branches. The
+text report hides files at 100%, so a file missing from the table is covered, not skipped.
 
 ## Verifying in a real browser
 

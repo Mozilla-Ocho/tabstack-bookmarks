@@ -21,6 +21,11 @@ All notable changes to this extension. Format follows
 - A test that fails on a key the code asks for and `locales/en.yml` does not define, and on a
   key nothing uses. A missing message is an empty string at runtime rather than a crash, so
   nothing else would have caught it.
+- Tests for the three pages, the error boundary and the background's message router, which
+  had none: the popup's auto-save and re-save-in-place, the import page's progress and
+  cancellation, the options page's connection checks and unsaved-changes guard, and the
+  `sendResponse`-plus-`return true` contract Chrome requires. 183 tests to 276, with
+  coverage now gating `entrypoints/` and `src/ui/` as well as `src/lib/`.
 
 ### Changed
 

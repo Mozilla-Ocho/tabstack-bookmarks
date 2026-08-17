@@ -186,15 +186,18 @@ pnpm dev:firefox     # Firefox with HMR
 pnpm dev             # Chrome with HMR
 pnpm lint            # eslint (type-aware, plus react-hooks)
 pnpm format          # prettier --write .
-pnpm test            # vitest — 183 tests
-pnpm test:coverage   # with thresholds over src/lib
+pnpm test            # vitest — 274 tests, pages included
+pnpm test:coverage   # thresholds over src/ and entrypoints/
 pnpm compile         # tsc --noEmit
 pnpm build:firefox   # production build
 pnpm zip:firefox     # AMO package + sources zip
 ```
 
 Tests run through `WxtVitest`, which supplies `#imports` and an in-memory `fakeBrowser`.
-Storage, settings and the import queue are exercised for real; only `fetch` is stubbed.
+Storage, settings and the import queue are exercised for real; only `fetch` is stubbed. The
+three pages are tested with Testing Library against the same fake browser, so the popup's
+auto-save, an import's progress and the options page's connection checks are covered as
+behaviour rather than as markup.
 
 ### Layout
 

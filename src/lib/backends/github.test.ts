@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HttpError, isRetryableStatus } from '../httpError';
 import { DEFAULT_SETTINGS, type Settings } from '../settings';
 import { githubBackend, verifyGitHub } from './github';
 import type { SavePayload } from './types';
@@ -115,6 +116,53 @@ describe('githubBackend.save', () => {
     fetchMock.mockResolvedValueOnce(json(401, { message: 'Bad credentials' }));
     await expect(githubBackend.save(payload, settings)).rejects.toThrow(
       /GitHub rejected the token \(401\)/,
+    );
+  });
+
+  it('says which of owner, repo and branch to check on a 404 lookup', async () => {
+    // A 404 from the *lookup* means "no file yet", so the 404 message can only
+    // come from the commit itself.
+    fetchMock
+      .mockResolvedValueOnce(json(404, {}))
+      .mockResolvedValueOnce(json(404, { message: 'Not Found' }));
+
+    await expect(githubBackend.save(payload, settings)).rejects.toThrow(
+      /GitHub repo or branch not found \(404\)\. Check owner, repo and branch/,
+    );
+  });
+
+  it('carries the status so an import can decide what to do', async () => {
+    fetchMock.mockResolvedValueOnce(json(403, { message: 'rate limited' }));
+
+    const failure = await githubBackend
+      .save(payload, settings)
+      .catch((error: unknown) => error);
+
+    // 403 is retryable (GitHub uses it for secondary rate limits), 404 is not.
+    expect((failure as HttpError).status).toBe(403);
+    expect(isRetryableStatus((failure as HttpError).status)).toBe(true);
+  });
+
+  it('reports a lookup that failed for some other reason', async () => {
+    fetchMock.mockResolvedValueOnce(json(500, { message: 'server error' }));
+    await expect(githubBackend.save(payload, settings)).rejects.toThrow(
+      /GitHub lookup failed \(500\)/,
+    );
+  });
+
+  it('refuses to write over a directory', async () => {
+    fetchMock.mockResolvedValueOnce(json(200, { type: 'dir', sha: 'abc' }));
+    await expect(
+      githubBackend.save({ ...payload, overwrite: true }, settings),
+    ).rejects.toThrow('A dir already exists at bookmarks/2026-08-14-post.md.');
+  });
+
+  it('gives up rather than guessing forever when every name is taken', async () => {
+    // A fresh Response per call: a body can only be read once, so a single
+    // shared one would fail the second lookup with a TypeError instead.
+    fetchMock.mockImplementation(() => json(200, { type: 'file', sha: 'abc' }));
+    await expect(githubBackend.save(payload, settings)).rejects.toThrow(
+      /Could not find a free filename near bookmarks\/2026-08-14-post\.md/,
     );
   });
 

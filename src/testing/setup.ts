@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { generateChromeMessages, parseMessagesFile } from '@wxt-dev/i18n/build';
+import { afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
 /**
@@ -33,3 +34,17 @@ function getMessage(key: string, subs?: string | string[]): string {
 // `fakeBrowser.reset()` only resets APIs that implement `resetState`, so this
 // survives the `beforeEach` in every test file.
 fakeBrowser.i18n.getMessage = getMessage as typeof fakeBrowser.i18n.getMessage;
+
+/**
+ * Unmount between tests in the files that render components. Testing Library
+ * only registers this itself when Vitest runs with globals enabled, and without
+ * it a second `render()` leaves the first one's DOM in place — every `getByRole`
+ * then fails with "found multiple elements".
+ *
+ * Guarded, because most of the suite runs in the node environment where there is
+ * no document to clean up.
+ */
+if (typeof document !== 'undefined') {
+  const { cleanup } = await import('@testing-library/react');
+  afterEach(cleanup);
+}

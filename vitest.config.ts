@@ -13,13 +13,13 @@ export default defineConfig({
     // strings stay meaningful. See the file for why.
     setupFiles: ['./src/testing/setup.ts'],
     coverage: {
-      // `pnpm test:coverage`. Only src/lib is measured: the entrypoints are React
-      // and browser wiring that the driver scripts in scripts/ exercise instead,
-      // and counting them would just move the number without testing anything.
-      include: ['src/lib/**/*.ts'],
-      exclude: ['src/lib/**/*.test.ts'],
+      // `pnpm test:coverage`. The pages are in here now that they have tests of
+      // their own; `main.tsx` and the CSS-only files are mounting boilerplate the
+      // driver scripts in scripts/ cover better than a unit test would.
+      include: ['src/lib/**/*.ts', 'src/ui/**/*.ts?(x)', 'entrypoints/**/*.ts?(x)'],
+      exclude: ['**/*.test.ts?(x)', 'entrypoints/**/main.tsx'],
       reporter: ['text', 'html'],
-      thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 },
+      thresholds: { statements: 85, branches: 85, functions: 90, lines: 85 },
     },
   },
 });

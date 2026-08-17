@@ -3,6 +3,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  HttpError,
+  isFatalStatus,
+  isRetryableStatus,
+  NETWORK_STATUS,
+} from '../httpError';
 import { DEFAULT_SETTINGS, type Settings } from '../settings';
 import { obsidianBackend, verifyObsidian } from './obsidian';
 import type { SavePayload } from './types';
@@ -78,6 +84,49 @@ describe('obsidianBackend.save', () => {
     expect(
       fetchMock.mock.calls.every(([, init]) => (init?.method ?? 'GET') !== 'PUT'),
     ).toBe(true);
+  });
+
+  it('reports a write the plugin refused, with its own message', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('', { status: 404 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: 'vault is read-only' }), {
+          status: 405,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+
+    await expect(obsidianBackend.save(payload, settings)).rejects.toThrow(
+      'Obsidian write failed (405). vault is read-only',
+    );
+  });
+
+  it('stops the run when the existence check is unauthorized', async () => {
+    // Not a per-item failure: the same key will reject every remaining bookmark.
+    fetchMock.mockResolvedValueOnce(
+      new Response('{}', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const failure = await obsidianBackend
+      .save(payload, settings)
+      .catch((error: unknown) => error);
+
+    expect((failure as HttpError).status).toBe(401);
+    expect(isFatalStatus((failure as HttpError).status)).toBe(true);
+  });
+
+  it('reports an unreachable plugin as retryable, not as a bad note', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const failure = await obsidianBackend
+      .save(payload, settings)
+      .catch((error: unknown) => error);
+
+    expect((failure as HttpError).status).toBe(NETWORK_STATUS);
+    expect(isRetryableStatus((failure as HttpError).status)).toBe(true);
   });
 
   it('explains a rejected API key', async () => {
