@@ -38,6 +38,7 @@ export function App() {
   const [recent, setRecent] = useState<SaveRecord[]>([]);
   const [savedCount, setSavedCount] = useState<number | null>(null);
   const [busy, setBusy] = useState<'key' | 'dest' | null>(null);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     void getSettings().then(setLocal);
@@ -59,23 +60,40 @@ export function App() {
     };
   }, [origin]);
 
+  /**
+   * Nothing here writes as you type — a half-typed API key or repo name would
+   * make every save fail — so leaving with edits pending loses them. Warn first.
+   */
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
   if (!settings) return <div className="options">Loading…</div>;
 
   const patch = (next: Partial<Settings>) => {
     setLocal({ ...settings, ...next });
     setSaved(false);
+    setDirty(true);
   };
 
   async function persist() {
     await setSettings(settings!);
     setSaved(true);
+    setDirty(false);
   }
 
   async function testKey() {
     setBusy('key');
     setKeyNote(null);
     try {
+      // Testing the key stores it, so the result describes what is saved rather
+      // than what is only typed in.
       await setSettings(settings!);
+      setSaved(true);
+      setDirty(false);
       const res = await extractMarkdown({
         apiKey: settings!.apiKey,
         url: 'https://example.com',
@@ -587,11 +605,17 @@ export function App() {
           onClick={() => {
             setLocal({ ...DEFAULT_SETTINGS, apiKey: settings.apiKey });
             setSaved(false);
+            setDirty(true);
           }}
         >
           Reset to defaults
         </button>
         {saved && <span className="status ok">Saved.</span>}
+        {dirty && (
+          <span className="status err" role="status">
+            Unsaved changes.
+          </span>
+        )}
       </div>
     </div>
   );

@@ -87,6 +87,9 @@ export function App() {
   const percent = progress?.total
     ? Math.round((progress.index / progress.total) * 100)
     : 0;
+  // The listed failures are capped; the count is not, so read it separately.
+  const failed = progress?.failed ?? progress?.failures.length ?? 0;
+  const listed = progress?.failures.length ?? 0;
 
   async function start() {
     setBusy(true);
@@ -242,8 +245,9 @@ export function App() {
             ))}
           </select>
           <p className="help">
-            Rate-limited bookmarks are retried with backoff. Running out of credits or a
-            rejected key stops the whole run.
+            Rate limits and dropped connections are retried with backoff. Running out of
+            credits, a rejected key, a destination that cannot be found, or five failures
+            in a row stops the whole run.
           </p>
         </div>
       </section>
@@ -272,7 +276,7 @@ export function App() {
               <strong>{progress.saved}</strong> saved
             </span>
             <span>
-              <strong>{progress.failures.length}</strong> failed
+              <strong>{failed}</strong> failed
             </span>
             {progress.skipped > 0 && (
               <span>
@@ -287,16 +291,25 @@ export function App() {
             <div className="status err">{progress.abortReason}</div>
           )}
 
-          {progress.failures.length > 0 && (
-            <ul className="failures">
-              {progress.failures.map((failure) => (
-                <li key={failure.url}>
-                  <strong>{failure.title || failure.url}</strong>
-                  <div className="url">{failure.url}</div>
-                  <div className="help">{failure.error}</div>
-                </li>
-              ))}
-            </ul>
+          {listed > 0 && (
+            <>
+              {failed > listed && (
+                <p className="help">
+                  Showing the last {listed} of {failed} failures.
+                </p>
+              )}
+              <ul className="failures">
+                {progress.failures.map((item, i) => (
+                  // The same URL can be bookmarked twice, so the URL alone is
+                  // not a unique key.
+                  <li key={`${item.url}-${i}`}>
+                    <strong>{item.title || item.url}</strong>
+                    <div className="url">{item.url}</div>
+                    <div className="help">{item.error}</div>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </section>
       )}

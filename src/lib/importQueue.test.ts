@@ -21,6 +21,7 @@ import {
   DEFAULT_IMPORT_OPTIONS,
   getJob,
   cancelImport,
+  MAX_FAILURES,
   planImport,
   processJob,
   startImport,
@@ -275,6 +276,41 @@ describe('processJob', () => {
     expect(job).toMatchObject({ running: false, index: 5, saved: 0 });
     expect(job!.abortReason).toMatch(/5 failures in a row/);
     expect(job!.abortReason).toMatch(/API key is missing/);
+  });
+
+  it('caps the stored failure list but keeps counting', async () => {
+    // The job is one storage key, rewritten and broadcast after every item, so
+    // the list cannot grow with the run. The count still has to be right.
+    const total = (MAX_FAILURES + 5) * 2;
+    collect.mockResolvedValue(
+      Array.from({ length: total }, (_, i) => ({
+        id: `${i}`,
+        url: `https://ex.com/${i}`,
+        title: `Page ${i}`,
+        folders: [],
+      })),
+    );
+    // Every other item fails, so the streak breaker never trips and the run
+    // reaches the end.
+    save.mockImplementation(async (request: SaveRequest) => {
+      const i = Number(request.url.split('/').at(-1));
+      return i % 2 === 0
+        ? record({ url: request.url, status: 'error', error: `boom ${i}` })
+        : record({ url: request.url });
+    });
+
+    await startImport({ ...OPTIONS, delayMs: 0 });
+    const job = await drain();
+
+    expect(job).toMatchObject({
+      index: total,
+      saved: MAX_FAILURES + 5,
+      failed: MAX_FAILURES + 5,
+    });
+    // Oldest dropped, newest kept: the tail is what explains a run.
+    expect(job!.failures).toHaveLength(MAX_FAILURES);
+    expect(job!.failures.at(-1)!.url).toBe(`https://ex.com/${total - 2}`);
+    expect(job!.failures[0]!.url).toBe('https://ex.com/10');
   });
 
   it('forgives a failure once something saves again', async () => {

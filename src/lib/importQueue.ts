@@ -43,7 +43,14 @@ export interface ImportJob {
   cancelled: boolean;
   saved: number;
   skipped: number;
+  /** The most recent failures, capped at `MAX_FAILURES`. See `failed`. */
   failures: ImportFailure[];
+  /**
+   * Every failure, including the ones trimmed out of `failures`. Optional
+   * because jobs stored by earlier versions do not have it; fall back to
+   * `failures.length`.
+   */
+  failed?: number;
   /**
    * Failures since the last success. Optional because jobs stored by earlier
    * versions do not have it; treat a missing value as 0.
@@ -74,6 +81,12 @@ const MAX_RETRIES = 3;
  * unattended run pays Tabstack to extract thousands of pages it cannot store.
  */
 const MAX_CONSECUTIVE_FAILURES = 5;
+/**
+ * Failures kept in full. The job lives in one storage key that is rewritten and
+ * broadcast after every item, so an unlucky 5,000-bookmark run must not grow an
+ * unbounded list inside it. `failed` still counts them all.
+ */
+export const MAX_FAILURES = 100;
 
 export async function getJob(): Promise<ImportJob | undefined> {
   const stored = await browser.storage.local.get(JOB_KEY);
@@ -128,6 +141,7 @@ export async function startImport(options: ImportOptions): Promise<ImportJob> {
     saved: 0,
     skipped,
     failures: [],
+    failed: 0,
     consecutiveFailures: 0,
     options,
     startedAt: Date.now(),
@@ -228,16 +242,19 @@ export async function processJob(
         index: latest.index + 1,
         saved: latest.saved + (ok ? 1 : 0),
         consecutiveFailures,
+        failed: (latest.failed ?? latest.failures.length) + (ok ? 0 : 1),
         failures: ok
           ? latest.failures
-          : [
+          : // Newest last, oldest dropped: the tail is what a user reads to work
+            // out what went wrong, and the count lives in `failed` regardless.
+            [
               ...latest.failures,
               {
                 url: item.url,
                 title: item.title,
                 error: record?.error ?? 'Unknown error',
               },
-            ],
+            ].slice(-MAX_FAILURES),
       });
       onProgress?.(job);
 

@@ -144,7 +144,14 @@ try {
   } else {
     chrome.kill();
     await sleep(500);
-    rmSync(profile, { recursive: true, force: true });
+    // Chrome can still be flushing its profile after the kill, which made this
+    // throw ENOTEMPTY and lose the exit code the run had earned. Retry, and
+    // treat a leftover temp directory as a nuisance rather than a failure.
+    try {
+      rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch (error) {
+      console.error(`could not remove ${profile}: ${String(error.message ?? error)}`);
+    }
   }
   process.exit(failed ? 1 : 0);
 }
