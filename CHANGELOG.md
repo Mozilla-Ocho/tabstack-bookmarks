@@ -6,6 +6,8 @@ All notable changes to this extension. Format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-17
+
 ### Added
 
 - A library page: everything ever saved, searchable by title, URL or the path it landed at,

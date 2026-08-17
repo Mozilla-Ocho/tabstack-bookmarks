@@ -224,7 +224,7 @@ pnpm dev:firefox     # Firefox with HMR
 pnpm dev             # Chrome with HMR
 pnpm lint            # eslint (type-aware, plus react-hooks)
 pnpm format          # prettier --write .
-pnpm test            # vitest — 274 tests, pages included
+pnpm test            # vitest — 428 tests, pages included
 pnpm test:coverage   # thresholds over src/ and entrypoints/
 pnpm compile         # tsc --noEmit
 pnpm build:firefox   # production build

@@ -12,6 +12,14 @@ updates:
         dependency-type: development
       runtime:
         dependency-type: production
+    ignore:
+      # TypeScript is pinned to 6.x on purpose: typescript-eslint refuses to run
+      # against 7, and type-aware linting is worth more than being on the newest
+      # compiler. Patches and minors still come through; the major does not, so
+      # this stops a PR nobody can merge arriving every week. Remove this once
+      # typescript-eslint supports 7 — see AGENTS.md.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
