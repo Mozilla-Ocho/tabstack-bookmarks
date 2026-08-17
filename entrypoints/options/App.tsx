@@ -595,6 +595,14 @@ export function App() {
             {i18n.t('common.refresh')}
           </button>
           <button
+            className="primary"
+            onClick={() =>
+              void browser.tabs.create({ url: browser.runtime.getURL('/library.html') })
+            }
+          >
+            {i18n.t('options.openLibrary')}
+          </button>
+          <button
             onClick={async () => {
               if (!confirm(i18n.t('options.forgetSavedConfirm'))) return;
               await clearSaved();

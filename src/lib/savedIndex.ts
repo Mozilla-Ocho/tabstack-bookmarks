@@ -101,6 +101,43 @@ export async function listSaved(limit?: number): Promise<SavedEntry[]> {
   return limit ? entries.slice(0, limit) : entries;
 }
 
+export interface SearchResult {
+  entries: SavedEntry[];
+  /** How many matched, before `limit` was applied. */
+  matched: number;
+  /** How many are in the index altogether. */
+  total: number;
+}
+
+/**
+ * Substring search over the index, newest first.
+ *
+ * Reads and filters the whole index rather than keeping a search structure: it is
+ * one pass over data already in memory, and the alternative is a second index to
+ * keep in sync with the first. `matched` and `total` are what let the page say
+ * "showing 50 of 312" instead of implying the list is everything.
+ */
+export async function searchSaved(query = '', limit?: number): Promise<SearchResult> {
+  const all = (await readAll()).sort((a, b) => b.savedAt - a.savedAt);
+  const needle = query.trim().toLowerCase();
+
+  const matches = needle
+    ? all.filter((entry) =>
+        // Location as well as URL and title: "which of these went to the repo?"
+        // is a question people ask of a folder they can see.
+        [entry.title, entry.url, entry.location].some((field) =>
+          field?.toLowerCase().includes(needle),
+        ),
+      )
+    : all;
+
+  return {
+    entries: limit ? matches.slice(0, limit) : matches,
+    matched: matches.length,
+    total: all.length,
+  };
+}
+
 export async function countSaved(): Promise<number> {
   const stored = await browser.storage.local.get(null);
   return Object.keys(stored).filter(isEntryKey).length;

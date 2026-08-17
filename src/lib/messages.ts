@@ -60,6 +60,13 @@ export interface ListFoldersRequest {
   type: 'listFolders';
 }
 
+/** Search the durable saved index, for the library page. */
+export interface SearchSavedRequest {
+  type: 'searchSaved';
+  query?: string;
+  limit?: number;
+}
+
 export interface PlanImportRequest {
   type: 'planImport';
   options: ImportOptions;
@@ -79,6 +86,7 @@ export type Message =
   | GetStateRequest
   | ClearStateRequest
   | ListFoldersRequest
+  | SearchSavedRequest
   | PlanImportRequest
   | StartImportRequest
   | ImportControlRequest;

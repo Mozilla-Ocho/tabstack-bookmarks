@@ -324,4 +324,12 @@ describe('recent saves', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open bookmark import' }));
     expect(fakeBrowser.tabs.create).toHaveBeenCalled();
   });
+
+  it('opens the library in a tab', async () => {
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Browse saved pages' }));
+    expect(fakeBrowser.tabs.create).toHaveBeenCalledWith(
+      expect.objectContaining({ url: expect.stringContaining('library.html') }),
+    );
+  });
 });

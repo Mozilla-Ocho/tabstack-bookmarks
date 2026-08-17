@@ -28,7 +28,7 @@ import {
   putRecord,
   rememberSave,
 } from '@/src/lib/saveStore';
-import { migrateFromRecent } from '@/src/lib/savedIndex';
+import { migrateFromRecent, searchSaved } from '@/src/lib/savedIndex';
 
 const MENU_PAGE = 'tabstack-save-page';
 const MENU_LINK = 'tabstack-save-link';
@@ -121,6 +121,8 @@ function route(message: Message): Promise<unknown> | null {
       return deleteRecord(message.url).then(() => true);
     case 'listFolders':
       return listBookmarkFolders();
+    case 'searchSaved':
+      return searchSaved(message.query, message.limit);
     case 'planImport':
       return planImport(message.options).then(({ items, skipped }) => ({
         count: items.length,

@@ -1,0 +1,44 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+/* Reuses `.recent` from the options page; `.saved` adds what a browsable list
+ * needs that a thirty-item summary does not. */
+
+.saved .url {
+  color: var(--muted);
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.saved li {
+  /* Keeps the row from reflowing as the button label changes to "Re-saving…". */
+  align-items: center;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* Long titles and paths must not push the buttons off the row. */
+.saved li > div:first-child {
+  min-width: 0;
+}
+
+@media (width < 560px) {
+  .saved li {
+    flex-wrap: wrap;
+  }
+
+  .saved time {
+    order: 3;
+  }
+
+  .row-actions {
+    order: 4;
+    margin-left: auto;
+  }
+}

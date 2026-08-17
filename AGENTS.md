@@ -17,8 +17,8 @@ tab URL → Tabstack /extract/markdown (+ optional /generate/json)
         → rememberSave()
 ```
 
-Popup, keyboard command, context menu and the import queue are four callers of that one
-function. Add a fifth caller rather than a second pipeline.
+Popup, keyboard command, context menu, the import queue and the library's re-save are five
+callers of that one function. Add a sixth caller rather than a second pipeline.
 
 ## Commands
 
@@ -56,6 +56,10 @@ allowed to reset on restart.
 **There is exactly one final-write path: `rememberSave()`.** It writes both the 30-record
 UI history and the durable index. Progress updates use `putRecord()`. If you add a new
 save caller, call `rememberSave()` when it finishes.
+
+**`savedIndex` is the library, not just a dedupe set.** `searchSaved()` backs the library
+page, so an entry is something a user can see, re-save and delete — `forgetSaved()` is a
+user-visible action now, not only internal bookkeeping.
 
 **Dedupe reads `savedIndex`, never `listRecords()`.** `saveStore` is capped at 30 records
 for the UI. Using it for "have I saved this?" was a real bug: a 1,000-bookmark import
@@ -197,6 +201,10 @@ message assertion in the suite meaningless.
 | `savedIndexWrites`   | Saves since the last prune sweep                  |
 | `savedIndexMigrated` | Set once the pre-index migration has run          |
 | `importJob`          | The running/most recent import job                |
+
+The library page reads the index through the `searchSaved` message rather than touching
+storage directly: only the background should be scanning 50,000 keys, and only once per
+query.
 
 The `saved:` prefix is sharded on purpose: a single map would be rewritten on every save.
 Anything iterating all keys must filter by prefix and ignore the rest.

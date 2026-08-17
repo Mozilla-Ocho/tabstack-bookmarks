@@ -48,6 +48,10 @@ translated listing needs only a `locales/<code>.yml`.
 > Turn it on and each save also gets a short summary, the key points as a bullet list, and
 > suggested topic tags. Off by default, because it costs an extra API call.
 >
+> **Find them again**
+> Search everything you have saved by title, URL or file path. Re-save a page that has
+> changed, straight over the file you saved before.
+>
 > **Bring your existing bookmarks**
 > Import the bookmarks you already have, a folder at a time. Folder names become tags,
 > pages you already saved are skipped, and the run continues in the background — close the

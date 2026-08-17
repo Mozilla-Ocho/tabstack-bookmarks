@@ -276,6 +276,14 @@ export function App() {
           {showDetails ? i18n.t('popup.lessButton') : i18n.t('popup.noteButton')}
         </button>
         <span className="grow" />
+        <button
+          className="link"
+          onClick={() =>
+            void browser.tabs.create({ url: browser.runtime.getURL('/library.html') })
+          }
+        >
+          {i18n.t('popup.library')}
+        </button>
         <button className="link" onClick={() => void browser.runtime.openOptionsPage()}>
           {i18n.t('common.options')}
         </button>

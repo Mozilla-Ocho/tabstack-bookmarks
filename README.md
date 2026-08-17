@@ -19,6 +19,7 @@ Built with [WXT](https://wxt.dev), so one source tree builds for Firefox and Chr
 - [How it works](#how-it-works) · [Install](#install) · [First run](#first-run)
 - [Saving a page](#saving-a-page) · [What gets written](#what-gets-written)
 - [Destinations](#destinations) · [Summaries](#summaries) · [Import](#importing-bookmarks-you-already-have)
+- [Browsing what you saved](#browsing-what-you-saved)
 - [Settings](#settings) · [Privacy](#privacy) · [Development](#development)
 
 ## How it works
@@ -149,6 +150,25 @@ shows. That distinction matters: with only the visible history, a 1,000-bookmark
 would remember the last 30 and re-save — and re-charge for — everything else next time.
 Options → **Forget saved history** clears the index; your files are untouched.
 
+## Browsing what you saved
+
+Options → **Browse saved pages**, or **Saved** in the popup. Every page the extension has
+ever saved, newest first — not the last thirty. Type to filter on title, URL or the path the
+file landed at, so "which of these went into `archive/`?" is one search.
+
+Each row offers:
+
+- **Re-save** — fetches the page again and overwrites the same file, for something that has
+  been updated since. It costs an API call, like any save.
+- **Forget** — drops the entry from the index so a future import will save the page again.
+  The file itself is untouched.
+- **open** — for an Obsidian vault (`obsidian://`) or a GitHub repo. Downloaded files have no
+  URL to link to, and GitHub links are offered only while the settings still point at the
+  repo the file went to.
+
+Long libraries render fifty rows at a time with a **Show more** button; the counts above the
+list always describe the whole set, not the window.
+
 ## Settings
 
 | Setting                 | Default            | Notes                                                                              |
@@ -207,6 +227,7 @@ entrypoints/
   popup/            one-click save, editable title/tags/note
   options/          API key, destination, filename template, recent saves
   import/           bulk import of existing bookmarks
+  library/          search, re-save and forget what has been saved
 locales/
   en.yml            every string a user reads; a translation is one more file
 src/ui/
@@ -340,7 +361,6 @@ tokens you paste are stored, and the boundaries the code keeps. The extension is
 
 ## Roadmap
 
-- Search across saved items; re-extract stale ones.
-- Notice when a saved page has changed and offer to refresh it.
+- Notice when a saved page has changed, instead of leaving you to re-save on a hunch.
 - Per-folder destination rules — work bookmarks to a repo, personal to the vault.
 - S3/R2 and WebDAV destinations.

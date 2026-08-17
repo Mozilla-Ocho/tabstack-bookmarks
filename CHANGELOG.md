@@ -8,6 +8,9 @@ All notable changes to this extension. Format follows
 
 ### Added
 
+- A library page: everything ever saved, searchable by title, URL or the path it landed at,
+  with per-row re-save and forget. The durable index held up to 50,000 entries and nothing
+  could see past the thirty most recent. Reachable from the options page and the popup.
 - Localization, via `@wxt-dev/i18n`. Every string the UI shows now lives in
   `locales/en.yml`, including the extension name and description, which the manifest picks
   up as `__MSG_` references. A translation is one more file — `locales/de.yml` — with no code

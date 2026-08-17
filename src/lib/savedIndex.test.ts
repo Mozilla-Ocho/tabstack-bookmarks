@@ -17,6 +17,7 @@ import {
   migrateFromRecent,
   pruneSaved,
   savedUrls,
+  searchSaved,
 } from './savedIndex';
 
 function done(url: string, at = 1_000, extra: Partial<SaveRecord> = {}): SaveRecord {
@@ -136,6 +137,84 @@ describe('pruneSaved', () => {
     await markSaved(done('https://ex.com/a'));
     expect(await pruneSaved(10)).toBe(0);
     expect(await countSaved()).toBe(1);
+  });
+});
+
+describe('searchSaved', () => {
+  beforeEach(async () => {
+    await markSaved(
+      done('https://rust-lang.org/book', 3, {
+        title: 'The Rust Book',
+        path: 'rust.md',
+        location: 'notes/rust.md',
+      }),
+    );
+    await markSaved(
+      done('https://example.com/css-grid', 2, {
+        title: 'Laying out with CSS Grid',
+        path: 'grid.md',
+        location: 'notes/grid.md',
+      }),
+    );
+    await markSaved(
+      done('https://example.com/archive/old', 1, {
+        title: 'Something else',
+        path: 'old.md',
+        location: 'archive/old.md',
+      }),
+    );
+  });
+
+  it('returns everything, newest first, when there is no query', async () => {
+    const result = await searchSaved();
+    expect(result.entries.map((e) => e.title)).toEqual([
+      'The Rust Book',
+      'Laying out with CSS Grid',
+      'Something else',
+    ]);
+    expect(result).toMatchObject({ matched: 3, total: 3 });
+  });
+
+  it('matches on the title, case-insensitively', async () => {
+    const result = await searchSaved('rust');
+    expect(result.entries.map((e) => e.title)).toEqual(['The Rust Book']);
+    expect(result).toMatchObject({ matched: 1, total: 3 });
+  });
+
+  it('matches on the URL', async () => {
+    expect((await searchSaved('css-grid')).entries).toHaveLength(1);
+  });
+
+  /** "Which of these went into the archive folder?" is a real question. */
+  it('matches on where the file landed', async () => {
+    const result = await searchSaved('archive/');
+    expect(result.entries.map((e) => e.title)).toEqual(['Something else']);
+  });
+
+  it('reports nothing matched rather than falling back to everything', async () => {
+    const result = await searchSaved('nothing like this');
+    expect(result.entries).toEqual([]);
+    expect(result).toMatchObject({ matched: 0, total: 3 });
+  });
+
+  it('ignores surrounding whitespace, and treats blank as no query', async () => {
+    expect((await searchSaved('  rust  ')).matched).toBe(1);
+    expect((await searchSaved('   ')).matched).toBe(3);
+  });
+
+  /** The page renders a window of the results; the counts describe the whole. */
+  it('limits what it returns without hiding how many matched', async () => {
+    const result = await searchSaved('', 2);
+    expect(result.entries).toHaveLength(2);
+    expect(result).toMatchObject({ matched: 3, total: 3 });
+  });
+
+  it('ignores storage that is not part of the index', async () => {
+    await fakeBrowser.storage.local.set({
+      settings: { apiKey: 'rust' },
+      savedIndexWrites: 4,
+    });
+    expect((await searchSaved()).total).toBe(3);
   });
 });
 

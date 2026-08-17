@@ -148,6 +148,23 @@ describe('message routing', () => {
     ]);
   });
 
+  it('searches the saved index, reporting the counts behind the window', async () => {
+    await send({ type: 'save', url: 'https://ex.com/a', title: 'A' });
+    await send({ type: 'save', url: 'https://other.com/b', title: 'B' });
+
+    const all = await send<{ entries: unknown[]; matched: number; total: number }>({
+      type: 'searchSaved',
+    });
+    expect(all).toMatchObject({ matched: 2, total: 2 });
+
+    const hits = await send<{ entries: { url: string }[]; matched: number }>({
+      type: 'searchSaved',
+      query: 'other.com',
+    });
+    expect(hits.entries.map((entry) => entry.url)).toEqual(['https://other.com/b']);
+    expect(hits.matched).toBe(1);
+  });
+
   it('answers planImport with counts, not the item list', async () => {
     const reply = await send<{ count: number; skipped: number }>({
       type: 'planImport',
