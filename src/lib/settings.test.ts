@@ -269,3 +269,61 @@ describe('syncing', () => {
     warn.mockRestore();
   });
 });
+
+describe('opting out of sync', () => {
+  it('stops writing to sync, and clears what it left there', async () => {
+    await setSettings({ filenameTemplate: 'shared.md' });
+    expect((await fakeBrowser.storage.sync.get('settings')).settings).toBeDefined();
+
+    await setSettings({ syncSettings: false });
+
+    // Not a stale copy for the next machine to adopt.
+    expect((await fakeBrowser.storage.sync.get('settings')).settings).toBeUndefined();
+  });
+
+  it('ignores a synced copy while opted out', async () => {
+    await fakeBrowser.storage.sync.set({
+      settings: { filenameTemplate: 'from-sync.md' },
+    });
+    await fakeBrowser.storage.local.set({
+      settings: { syncSettings: false, filenameTemplate: 'mine.md' },
+    });
+
+    expect((await getSettings()).filenameTemplate).toBe('mine.md');
+  });
+
+  it('adopts the synced copy again when switched back on', async () => {
+    await fakeBrowser.storage.sync.set({
+      settings: { filenameTemplate: 'from-sync.md' },
+    });
+    await fakeBrowser.storage.local.set({
+      settings: { syncSettings: true, filenameTemplate: 'mine.md' },
+    });
+
+    expect((await getSettings()).filenameTemplate).toBe('from-sync.md');
+  });
+
+  /** One machine bowing out must not decide for the others. */
+  it('never syncs the switch itself', async () => {
+    await setSettings({ syncSettings: true });
+    const synced = (await fakeBrowser.storage.sync.get('settings')).settings as Record<
+      string,
+      unknown
+    >;
+    expect(synced.syncSettings).toBeUndefined();
+  });
+
+  it('syncs by default', async () => {
+    expect((await getSettings()).syncSettings).toBe(true);
+  });
+
+  it('does not read sync at all while opted out', async () => {
+    await fakeBrowser.storage.local.set({ settings: { syncSettings: false } });
+    const get = vi.spyOn(fakeBrowser.storage.sync, 'get');
+
+    await getSettings();
+
+    expect(get).not.toHaveBeenCalled();
+    get.mockRestore();
+  });
+});

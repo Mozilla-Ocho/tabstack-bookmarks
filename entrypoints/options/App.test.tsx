@@ -37,6 +37,11 @@ beforeEach(async () => {
     return true;
   }) as never;
   fakeBrowser.tabs.create = vi.fn().mockResolvedValue({}) as never;
+  fakeBrowser.downloads = { download: vi.fn(async () => 1) } as never;
+  // Chrome shape by default: getAll only, no update. Firefox adds the rest.
+  fakeBrowser.commands = {
+    getAll: vi.fn(async () => [{ name: 'save-page', shortcut: 'Alt+Shift+S' }]),
+  } as never;
 
   await setSettings(DEFAULT_SETTINGS);
 });
@@ -331,5 +336,169 @@ describe('recent saves', () => {
     expect(fakeBrowser.tabs.create).toHaveBeenCalledWith(
       expect.objectContaining({ url: expect.stringContaining('library.html') }),
     );
+  });
+});
+
+describe('the keyboard shortcut', () => {
+  it('shows what is bound', async () => {
+    await open();
+    await waitFor(() => expect(screen.getByText(/bound to Alt\+Shift\+S/)).toBeTruthy());
+  });
+
+  it('says when nothing is bound', async () => {
+    fakeBrowser.commands = {
+      getAll: vi.fn(async () => [{ name: 'save-page', shortcut: '' }]),
+    } as never;
+    await open();
+    await waitFor(() => expect(screen.getByText(/has no shortcut/)).toBeTruthy());
+  });
+
+  /** Chrome will not let an extension rebind its own shortcut. */
+  it('sends you to the browser’s own page where rebinding is not allowed', async () => {
+    await open();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Open browser shortcut settings' }),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByLabelText('New shortcut')).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Open browser shortcut settings' }),
+    );
+    expect(fakeBrowser.tabs.create).toHaveBeenCalledWith({
+      url: 'chrome://extensions/shortcuts',
+    });
+  });
+
+  it('rebinds in place where the browser allows it', async () => {
+    const update = vi.fn(async () => {});
+    let shortcut = 'Alt+Shift+S';
+    fakeBrowser.commands = {
+      getAll: vi.fn(async () => [{ name: 'save-page', shortcut }]),
+      update: vi.fn(async (details: { shortcut: string }) => {
+        shortcut = details.shortcut;
+        await update();
+      }),
+    } as never;
+    await open();
+
+    const input = await screen.findByLabelText('New shortcut');
+    fireEvent.change(input, { target: { value: 'Ctrl+Shift+Y' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+
+    await waitFor(() => expect(screen.getByText('Shortcut changed.')).toBeTruthy());
+    expect(screen.getByText(/bound to Ctrl\+Shift\+Y/)).toBeTruthy();
+  });
+
+  it('shows the browser’s complaint about an invalid shortcut', async () => {
+    fakeBrowser.commands = {
+      getAll: vi.fn(async () => [{ name: 'save-page', shortcut: 'Alt+Shift+S' }]),
+      update: vi.fn(async () => {
+        throw new Error('Value Ctrl+Q is an invalid shortcut.');
+      }),
+    } as never;
+    await open();
+
+    fireEvent.change(await screen.findByLabelText('New shortcut'), {
+      target: { value: 'Ctrl+Q' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Value Ctrl+Q is an invalid shortcut.')).toBeTruthy(),
+    );
+  });
+});
+
+describe('sharing preferences between browsers', () => {
+  it('is on by default and can be turned off', async () => {
+    await open();
+    const toggle = screen.getByLabelText(/Share preferences/);
+    expect(toggle).toHaveProperty('checked', true);
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+
+    await waitFor(async () => expect((await getSettings()).syncSettings).toBe(false));
+  });
+});
+
+describe('backing settings up', () => {
+  it('downloads a file named for today, and asks where to put it', async () => {
+    await setSettings({ ...DEFAULT_SETTINGS, apiKey: 'ts_secret' });
+    await open();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export settings' }));
+
+    await waitFor(() => expect(fakeBrowser.downloads.download).toHaveBeenCalled());
+    expect(fakeBrowser.downloads.download).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filename: expect.stringMatching(/^tabstack-settings-\d{4}-\d{2}-\d{2}\.json$/),
+        saveAs: true,
+      }),
+    );
+  });
+
+  it('loads a file into the form as unsaved changes, not into storage', async () => {
+    await open();
+
+    const file = new File(
+      [
+        JSON.stringify({
+          tabstackBookmarks: true,
+          settings: { filenameTemplate: 'from-file.md', backend: 'github' },
+        }),
+      ],
+      'backup.json',
+      { type: 'application/json' },
+    );
+    const input = document.querySelector('input[type=file]')!;
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Imported backup.json. Check it over, then save.'),
+      ).toBeTruthy(),
+    );
+    // Proposed, not applied: the page already knows how to show pending edits.
+    expect(screen.getByText('Unsaved changes.')).toBeTruthy();
+    expect((await getSettings()).filenameTemplate).toBe(
+      DEFAULT_SETTINGS.filenameTemplate,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+    await waitFor(async () =>
+      expect((await getSettings()).filenameTemplate).toBe('from-file.md'),
+    );
+  });
+
+  it('keeps the API key when a file is imported', async () => {
+    await setSettings({ ...DEFAULT_SETTINGS, apiKey: 'ts_secret' });
+    await open();
+
+    const file = new File(
+      [JSON.stringify({ tabstackBookmarks: true, settings: { apiKey: 'ts_from_file' } })],
+      'backup.json',
+    );
+    fireEvent.change(document.querySelector('input[type=file]')!, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => expect(screen.getByText(/Imported backup.json/)).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
+    await waitFor(async () => expect((await getSettings()).apiKey).toBe('ts_secret'));
+  });
+
+  it('explains a file it cannot read', async () => {
+    await open();
+
+    const file = new File(['not json'], 'junk.json');
+    fireEvent.change(document.querySelector('input[type=file]')!, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => expect(screen.getByText(/not JSON/)).toBeTruthy());
+    expect(screen.queryByText('Unsaved changes.')).toBeNull();
   });
 });

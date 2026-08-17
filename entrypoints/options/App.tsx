@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import { i18n } from '#i18n';
 import { backendLabel } from '@/src/ui/backendLabels';
@@ -27,6 +27,13 @@ import {
   setSettings,
   type Settings,
 } from '@/src/lib/settings';
+import {
+  applySettingsFile,
+  buildSettingsFile,
+  parseSettingsFile,
+  settingsFilename,
+} from '@/src/lib/settingsFile';
+import { canRebind, rebind, resetShortcut, savedShortcut } from '@/src/lib/shortcuts';
 import { extractMarkdown } from '@/src/lib/tabstack';
 
 type Note = { kind: 'ok' | 'err'; text: string } | null;
@@ -53,12 +60,21 @@ export function App() {
   const [savedCount, setSavedCount] = useState<number | null>(null);
   const [busy, setBusy] = useState<'key' | 'dest' | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [shortcut, setShortcut] = useState('');
+  const [shortcutInput, setShortcutInput] = useState('');
+  const [shortcutNote, setShortcutNote] = useState<Note>(null);
+  const [backupNote, setBackupNote] = useState<Note>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void getSettings().then(setLocal);
     void hasHostPermissions().then(setGranted);
     void listRecords().then(setRecent);
     void countSaved().then(setSavedCount);
+    void savedShortcut().then((current) => {
+      setShortcut(current);
+      setShortcutInput(current);
+    });
   }, []);
 
   // User-supplied destinations need their own origin permission.
@@ -154,6 +170,72 @@ export function App() {
     } finally {
       setBusy(null);
     }
+  }
+
+  async function changeShortcut() {
+    setShortcutNote(null);
+    // The browser is the authority on what a valid shortcut is; report its
+    // complaint rather than second-guessing it.
+    const error = await rebind(shortcutInput.trim());
+    if (error) {
+      setShortcutNote({ kind: 'err', text: error });
+      return;
+    }
+    setShortcut(await savedShortcut());
+    setShortcutNote({ kind: 'ok', text: i18n.t('options.shortcutChanged') });
+  }
+
+  async function restoreShortcut() {
+    setShortcutNote(null);
+    const error = await resetShortcut();
+    if (error) {
+      setShortcutNote({ kind: 'err', text: error });
+      return;
+    }
+    const current = await savedShortcut();
+    setShortcut(current);
+    setShortcutInput(current);
+    setShortcutNote({ kind: 'ok', text: i18n.t('options.shortcutChanged') });
+  }
+
+  async function exportToFile() {
+    setBackupNote(null);
+    const now = new Date();
+    const file = buildSettingsFile(await getSettings(), now);
+    const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    try {
+      // saveAs, because this is a file someone chose to keep.
+      await browser.downloads.download({
+        url,
+        filename: settingsFilename(now),
+        saveAs: true,
+      });
+    } catch (error) {
+      setBackupNote({ kind: 'err', text: (error as Error).message });
+    } finally {
+      // Long enough for the download to have read it.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }
+  }
+
+  async function importFromFile(file: File | undefined) {
+    setBackupNote(null);
+    if (!file) return;
+
+    const { settings: patched, error } = parseSettingsFile(await file.text());
+    if (error || !patched) {
+      setBackupNote({ kind: 'err', text: error ?? i18n.t('errors.unknown') });
+      return;
+    }
+
+    // Into the form, not into storage: an import is a proposal, and the page
+    // already knows how to show unsaved changes.
+    setLocal({ ...settings!, ...applySettingsFile(settings!, patched) });
+    setSaved(false);
+    setDirty(true);
+    setBackupNote({ kind: 'ok', text: i18n.t('options.imported', [file.name]) });
+    if (fileInput.current) fileInput.current.value = '';
   }
 
   const preview = renderFilename(settings.filenameTemplate, {
@@ -543,6 +625,103 @@ export function App() {
           >
             {i18n.t('options.openImport')}
           </button>
+        </div>
+      </section>
+
+      <section>
+        <h2>{i18n.t('options.shortcutHeading')}</h2>
+        <p className="help">
+          {shortcut
+            ? i18n.t('options.shortcutCurrent', [shortcut])
+            : i18n.t('options.shortcutUnbound')}
+        </p>
+
+        {canRebind() ? (
+          <>
+            <div className="field">
+              <label htmlFor="shortcut">{i18n.t('options.shortcutLabel')}</label>
+              <input
+                id="shortcut"
+                value={shortcutInput}
+                placeholder={i18n.t('options.shortcutPlaceholder')}
+                onChange={(e) => setShortcutInput(e.target.value)}
+              />
+            </div>
+            <div className="actions">
+              <button
+                onClick={() => void changeShortcut()}
+                disabled={!shortcutInput.trim()}
+              >
+                {i18n.t('options.shortcutSave')}
+              </button>
+              <button onClick={() => void restoreShortcut()}>
+                {i18n.t('options.shortcutReset')}
+              </button>
+              {shortcutNote && (
+                <span
+                  className={`status ${shortcutNote.kind === 'ok' ? 'ok' : 'err'}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {shortcutNote.text}
+                </span>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Chrome will not let an extension rebind its own shortcut. */}
+            <p className="help">{i18n.t('options.shortcutBrowserHelp')}</p>
+            <div className="actions">
+              <button
+                onClick={() =>
+                  void browser.tabs.create({ url: 'chrome://extensions/shortcuts' })
+                }
+              >
+                {i18n.t('options.shortcutOpenBrowser')}
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section>
+        <h2>{i18n.t('options.syncHeading')}</h2>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={settings.syncSettings}
+            onChange={(e) => patch({ syncSettings: e.target.checked })}
+          />
+          {i18n.t('options.syncSettings')}
+        </label>
+        <p className="help">{i18n.t('options.syncHelp')}</p>
+      </section>
+
+      <section>
+        <h2>{i18n.t('options.backupHeading')}</h2>
+        <p className="help">{i18n.t('options.backupHelp')}</p>
+        <div className="actions">
+          <button onClick={() => void exportToFile()}>{i18n.t('options.export')}</button>
+          <button onClick={() => fileInput.current?.click()}>
+            {i18n.t('options.import')}
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(e) => void importFromFile(e.target.files?.[0])}
+          />
+          {backupNote && (
+            <span
+              className={`status ${backupNote.kind === 'ok' ? 'ok' : 'err'}`}
+              role="status"
+              aria-live="polite"
+            >
+              {backupNote.text}
+            </span>
+          )}
         </div>
       </section>
 

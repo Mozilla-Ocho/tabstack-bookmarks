@@ -381,8 +381,26 @@ key, GitHub token, Obsidian key — deliberately stay on the device, because `st
 travels through your browser account. A second machine picks up how you like things and asks
 only for its own keys.
 
-Nothing breaks if sync is off, signed out, or blocked by policy: everything is written locally
-too, and the local copy is what the extension actually runs on.
+Turn it off per device under **This device** — a work laptop can bow out without deciding for
+your other browsers, and switching off also clears what that device already shared. Nothing
+breaks if sync is off, signed out, or blocked by policy: everything is written locally too, and
+the local copy is what the extension actually runs on.
+
+**Backup** exports the same preferences as a JSON file, for keeping or for a browser that does
+not sync. Credentials are not in it: an export lands in your downloads folder, and a file full
+of tokens is not a backup. Importing loads the file into the form as unsaved changes — you see
+what it will do before it takes effect — keeps the keys this device already has, and drops any
+field whose value it does not recognise.
+
+## The keyboard shortcut
+
+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> to start, shown under **Keyboard shortcut** in the
+options page.
+
+Firefox lets an extension rebind its own shortcut, so there is a field to do it in; the browser
+validates what you type and its complaint is what you see. Chrome does not allow it at all —
+there the section links to `chrome://extensions/shortcuts`, which is the only place it can be
+changed.
 
 ## Privacy, security and licence
 

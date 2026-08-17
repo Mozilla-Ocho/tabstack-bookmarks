@@ -28,7 +28,13 @@ All three stay in `storage.local`. Preferences — the filename template, the de
 folder names — are also written to `storage.sync` so a second machine does not start from
 scratch, but the credentials are deliberately excluded: `storage.sync` travels through the
 browser account, and a token there is a token in someone else's infrastructure.
-`src/lib/settings.test.ts` asserts that the synced copy contains no secret.
+`src/lib/settings.test.ts` asserts that the synced copy contains no secret, and syncing can be
+turned off per device.
+
+The settings export is the same story: it contains preferences only, never the three
+credentials, because an export lands in a downloads folder that is frequently someone's cloud
+drive. An import ignores any credential a file tries to set. `src/lib/settingsFile.test.ts`
+asserts both.
 
 `storage.local` is unencrypted, per-profile, and readable by anyone who can read the
 browser profile directory or run code in the extension's own context. Browsers give

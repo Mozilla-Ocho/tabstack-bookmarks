@@ -149,11 +149,25 @@ turns a storage failure into an unhandled rejection and a run that silently stop
 
 ## Settings
 
+**A settings file is untrusted input.** `parseSettingsFile()` checks every field by type and,
+where it is an enumeration, by value, and drops what it does not recognise. A hand-edited file
+must not be able to put the extension into a state its own UI cannot represent. Credentials are
+neither exported nor accepted from a file: an export lands in a downloads folder that is
+somebody's cloud drive more often than not.
+
+**The two browsers disagree about shortcuts.** Firefox implements `commands.update`, so the
+options page rebinds in place; Chrome implements nothing and only offers
+`chrome://extensions/shortcuts`. `src/lib/shortcuts.ts` reports which is possible and reaches
+for both `update` and `reset` through a cast, because they are absent from the shared type. The
+browser validates the shortcut string — reimplementing its list of accepted keys would only let
+the two disagree.
+
 **Preferences sync; credentials never do.** `setSettings()` writes the whole object to
 `storage.local` and everything _except_ the three tokens to `storage.sync`. `getSettings()`
 prefers `sync` for preferences — both areas are written together, so they differ only when
 another device changed something — and takes `apiKey`, `github.token` and `obsidian.token`
-from `local` alone. `storage.sync` travels through the user's browser account; an API key is
+from `local` alone. `syncSettings` is per-device and never synced itself, or one machine
+opting out would opt them all out; opting out also clears what that device shared. `storage.sync` travels through the user's browser account; an API key is
 not ours to put there. A sync area that is missing, disabled or over quota must never stop a
 save: both reads and the write are wrapped, and local already has everything.
 

@@ -11,6 +11,16 @@ All notable changes to this extension. Format follows
 - A library page: everything ever saved, searchable by title, URL or the path it landed at,
   with per-row re-save and forget. The durable index held up to 50,000 entries and nothing
   could see past the thirty most recent. Reachable from the options page and the popup.
+- Syncing preferences can be turned off per device, under **This device**. The switch is never
+  itself synced — one machine opting out must not decide for the others — and turning it off
+  clears what that device had shared.
+- Settings export and import, as a JSON file, for keeping or for a browser that does not sync.
+  Credentials are excluded from the file and ignored on the way back in, an import arrives as
+  unsaved changes so you can see it before it applies, and any field whose value is not
+  recognised is dropped rather than trusted.
+- The keyboard shortcut is shown in the options page, and can be rebound there on Firefox.
+  Chrome does not allow an extension to rebind its own, so it links to the browser's page
+  instead.
 - The bulk-save page will work through the tabs you have open, not just bookmarks — this
   window or every window. A page open in twice is saved once, `about:` and `chrome://` tabs are
   left out, and it runs on the same queue as an import, so progress, backoff, cancel and resume

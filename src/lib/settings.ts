@@ -56,6 +56,12 @@ export interface Settings {
   summarize: boolean;
   /** Add the tags the summary suggests to the bookmark's own tags. */
   useSuggestedTags: boolean;
+  /**
+   * Copy preferences to `storage.sync` so other devices pick them up. Per-device
+   * and never synced itself: turning it off on a work machine must not turn it off
+   * everywhere.
+   */
+  syncSettings: boolean;
   backend: BackendId;
   github: GitHubSettings;
   download: DownloadSettings;
@@ -73,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultTags: [],
   summarize: false,
   useSuggestedTags: true,
+  syncSettings: true,
   backend: 'download',
   github: { token: '', owner: '', repo: '', branch: 'main', folder: 'bookmarks' },
   download: { folder: 'tabstack' },
@@ -101,13 +108,23 @@ function migrate(raw: Partial<Settings>): Partial<Settings> {
  * not ours to put there — see SECURITY.md. Preferences are: retyping a filename
  * template on every machine is the kind of friction people uninstall over.
  */
-export interface SyncedSettings extends Omit<Settings, 'apiKey' | 'github' | 'obsidian'> {
+export interface SyncedSettings extends Omit<
+  Settings,
+  'apiKey' | 'github' | 'obsidian' | 'syncSettings'
+> {
   github: Omit<GitHubSettings, 'token'>;
   obsidian: Omit<ObsidianSettings, 'token'>;
 }
 
 function syncable(s: Settings): SyncedSettings {
-  const { apiKey: _apiKey, github, obsidian, ...rest } = s;
+  const {
+    apiKey: _apiKey,
+    github,
+    obsidian,
+    // Per-device: syncing the switch would let one machine opt every machine out.
+    syncSettings: _syncSettings,
+    ...rest
+  } = s;
   const { token: _githubToken, ...githubRest } = github;
   const { token: _obsidianToken, ...obsidianRest } = obsidian;
   return { ...rest, github: githubRest, obsidian: obsidianRest };
@@ -136,13 +153,15 @@ async function readArea(
  * back to everything it has locally.
  */
 export async function getSettings(): Promise<Settings> {
-  const [local, synced] = await Promise.all([
-    readArea('local', KEY),
-    readArea('sync', KEY),
-  ]);
+  const local = await readArea('local', KEY);
+  const device = local as Partial<Settings>;
+
+  // Opted out on this device: read nothing from sync at all. The switch itself is
+  // only ever local, so one machine can bow out without deciding for the others.
+  const wantsSync = device.syncSettings ?? DEFAULT_SETTINGS.syncSettings;
+  const synced = wantsSync ? await readArea('sync', KEY) : {};
 
   const raw = migrate({ ...local, ...synced } as Partial<Settings>);
-  const device = local as Partial<Settings>;
 
   return {
     ...DEFAULT_SETTINGS,
@@ -165,6 +184,7 @@ export async function getSettings(): Promise<Settings> {
       token: device.obsidian?.token ?? '',
     },
     apiKey: device.apiKey ?? '',
+    syncSettings: wantsSync,
     schemaVersion: SCHEMA_VERSION,
   };
 }
@@ -175,8 +195,15 @@ export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
   // Local gets everything, including the credentials: this device has to keep
   // working when sync is unavailable.
   await browser.storage.local.set({ [KEY]: next });
+
   try {
-    await browser.storage.sync.set({ [KEY]: syncable(next) });
+    if (next.syncSettings) {
+      await browser.storage.sync.set({ [KEY]: syncable(next) });
+    } else {
+      // Opting out clears what this device put there, rather than leaving a stale
+      // copy for the next machine to adopt.
+      await browser.storage.sync.remove(KEY);
+    }
   } catch (error) {
     // Over quota, no account, sync disabled by policy. The settings are already
     // saved; syncing them is the part that failed.

@@ -149,6 +149,12 @@ errors:
     # $1 is the service name, $2 the Obsidian version.
     connectedVersion: Connected to $1 $2.
 
+  # Reading a settings file back in.
+  settingsFile:
+    notJson: That file is not JSON the extension can read.
+    notOurs: That file was not exported by this extension.
+    newer: That file was written by a newer version of the extension.
+
   # $1 is the path a free name was wanted for.
   noFreeName: Could not find a free filename near $1.
   # $1 is the browser's own download error, e.g. FILE_NO_SPACE.
@@ -252,6 +258,38 @@ options:
     in the background, one page at a time.
   openImport: Save pages in bulk
   openLibrary: Browse saved pages
+
+  syncHeading: This device
+  syncSettings: Share preferences with my other browsers
+  syncHelp:
+    Uses the browser's own sync, and only for preferences — the API key, the GitHub token and
+    the Obsidian key never leave this device. Turning this off also removes what this device
+    already put there.
+
+  backupHeading: Backup
+  # Quoted: the value contains a colon, which unquoted YAML reads as a nested key.
+  backupHelp: 'A settings file for keeping, or for a browser that does not sync.
+    Credentials are not included: an export lands in your downloads folder, and a file full
+    of tokens is not a backup.'
+  export: Export settings
+  import: Import settings
+  # $1 is the name of the file that was read.
+  imported: Imported $1. Check it over, then save.
+
+  shortcutHeading: Keyboard shortcut
+  # $1 is the shortcut, e.g. Alt+Shift+S.
+  shortcutCurrent: Saving the current page is bound to $1.
+  shortcutUnbound: Saving the current page has no shortcut.
+  shortcutLabel: New shortcut
+  shortcutPlaceholder: Alt+Shift+S
+  shortcutSave: Change
+  shortcutReset: Reset
+  shortcutChanged: Shortcut changed.
+  # Chrome will not let an extension rebind its own shortcut.
+  shortcutBrowserHelp:
+    This browser keeps extension shortcuts in its own settings page, which only you can
+    change.
+  shortcutOpenBrowser: Open browser shortcut settings
 
   recentHeading: Recent saves
   nothingSaved: Nothing saved yet.
