@@ -15,11 +15,20 @@ All notable changes to this extension. Format follows
 - `rich()` in `src/ui/rich.tsx`, so a sentence containing inline `<code>` or `<kbd>` stays a
   single translatable string instead of a key per fragment. Keys and their substitution
   counts are typed, so a typo or a missing argument fails `pnpm compile`.
+- Error messages are localized too — the Tabstack client, all three destinations, the config
+  checks and the import queue. The HTTP status stays in the text, since that is the part
+  worth quoting in a bug report.
+- A test that fails on a key the code asks for and `locales/en.yml` does not define, and on a
+  key nothing uses. A missing message is an empty string at runtime rather than a crash, so
+  nothing else would have caught it.
 
 ### Changed
 
-- The Tabstack and destination error messages thrown in `src/lib` stay English for now. They
-  are assembled from API responses and HTTP statuses, and the tests assert on them by name.
+- Destination names moved out of `StorageBackend` into `src/ui/backendLabels.ts`, behind
+  exhaustive switches: a new destination does not compile until it has been named, and
+  `src/lib` needs no message catalogue to instantiate a backend.
+- Tests answer `browser.i18n` from the real `locales/en.yml`, so assertions on user-visible
+  strings still check what a user reads.
 
 ## [0.2.0] — 2026-08-17
 

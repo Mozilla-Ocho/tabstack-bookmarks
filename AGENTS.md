@@ -169,9 +169,23 @@ The manifest's `name`, `description`, action title and command description are
 `__MSG_key__` references the browser substitutes, which is why `default_locale` must stay
 set.
 
-Deliberately still English: the error messages thrown in `src/lib`. They are assembled from
-API responses and HTTP statuses, and the tests assert on them by name. Localizing them is a
-separate job, not a side effect of touching a backend.
+Error messages are in there too, under `errors.*` — the HTTP status stays in the text, since
+that is the part a user quotes in a bug report. `src/lib/messagesCatalogue.test.ts` fails on
+a key the code asks for and the file does not define, and on a key nothing uses: a missing
+message is an empty string at runtime, not a crash, so nothing else would notice.
+
+Two traps in the messages file itself:
+
+- **Quote any value containing `: `.** Unquoted, YAML reads it as a nested key and the
+  message vanishes into a key named after its own text.
+- **Regenerate after editing** — `pnpm exec wxt prepare`. Stale types reject a key that
+  exists, which reads like a broken build.
+
+Tests get the real catalogue: `src/testing/setup.ts` compiles `locales/en.yml` the same way
+the build does and answers `browser.i18n.getMessage` from it. So an assertion on "out of
+credits (402)" is checking the string a user reads, and plural selection is exercised rather
+than stubbed. Do not replace that with a `t()` that echoes its key — it would make every
+message assertion in the suite meaningless.
 
 ## Storage keys
 

@@ -6,8 +6,8 @@
 # A key with `1:`/`n:` children is a plural form, selected by the count passed
 # as i18n.t()'s second argument.
 #
-# Not in here yet: the error messages thrown by src/lib. They are assembled from
-# API responses and HTTP statuses, and are asserted on by name in the tests.
+# Quote any value containing a colon followed by a space. Unquoted, YAML reads it
+# as a nested key, and the message silently disappears.
 
 # Used by the manifest via __MSG_extName__ / __MSG_extDescription__, and by both
 # store listings. Keep the description at or under 132 characters.
@@ -38,8 +38,6 @@ notify:
 common:
   loading: Loading…
   options: Options
-  save: Save
-  cancel: Cancel
   refresh: Refresh
   openOptions: Open options
   reload: Reload
@@ -68,6 +66,96 @@ popup:
   saving: Saving…
   save: Save
   resave: Re-save
+
+# Everything that can go wrong, as the user reads it: in the popup's status line,
+# in the import page's failure list, and in the finish notification.
+#
+# The HTTP status stays in the text on purpose. It is the one part a user can
+# search for or quote in a bug report, and it does not need translating.
+errors:
+  unknown: Unknown error
+  notHttp: Only http(s) pages can be saved.
+  # $1 is the list of configuration problems below.
+  configProblems: $1 Open the extension options to fix.
+  # $1 is the origin the destination needs, e.g. http://127.0.0.1:27123/*
+  originNotAllowed:
+    The extension is not allowed to talk to $1 yet. Open the options page and grant access
+    to the destination.
+
+  # Missing configuration, from configErrors(). Shown joined together.
+  config:
+    apiKey: Tabstack API key is missing.
+    githubToken: GitHub token is missing.
+    githubOwner: GitHub owner is missing.
+    githubRepo: GitHub repo is missing.
+    obsidianUrl: Obsidian REST API URL is missing.
+    obsidianToken: Obsidian REST API key is missing.
+
+  tabstack:
+    rejectedKey: Tabstack rejected the API key (401). Check it in the extension options.
+    outOfCredits: Tabstack organization is out of credits (402).
+    # $1 is whatever the API said about the page.
+    cannotFetch: Tabstack could not fetch this URL (422). $1
+    rateLimit: Tabstack rate limit hit (429). Try again in a moment.
+    # $1 is the HTTP status, $2 the API's own message.
+    failed: Tabstack request failed ($1). $2
+    # $1 is the underlying network error.
+    unreachable:
+      Could not reach api.tabstack.ai. Check your connection, and that the extension has
+      permission to reach it. ($1)
+
+  github:
+    # $1 is the underlying network error.
+    unreachable:
+      Could not reach api.github.com. Check your connection, and that the extension has
+      permission to reach it. ($1)
+    # $1 is 401 or 403, $2 GitHub's own message. Quoted: the value contains a
+    # colon, which an unquoted YAML scalar reads as a nested key.
+    rejectedToken: 'GitHub rejected the token ($1). It needs "Contents: read and write" on
+      this repo. $2'
+    # $1 is GitHub's own message.
+    notFound: GitHub repo or branch not found (404). Check owner, repo and branch. $1
+    # $1 is the HTTP status, $2 GitHub's own message.
+    lookupFailed: GitHub lookup failed ($1). $2
+    commitFailed: GitHub commit failed ($1). $2
+    checkFailed: GitHub check failed ($1). $2
+    # $1 is what is in the way ("dir", "submodule"), $2 the path.
+    notAFile: A $1 already exists at $2.
+    # $1 is the repository, $2 its default branch.
+    connected: 'Connected to $1 (default branch: $2).'
+    # $1 is the repository.
+    cannotWrite: Token cannot write to $1.
+
+  obsidian:
+    # $1 is the configured base URL.
+    unreachable:
+      Could not reach Obsidian at $1. Make sure Obsidian is running with the Local REST API
+      plugin enabled.
+    # Appended to the above when the URL is https, before the detail.
+    httpsHint:
+      The plugin's HTTPS port uses a self-signed certificate that extensions reject — enable
+      its HTTP port (default 27123) instead.
+    # $1 is the underlying network error, appended to either of the above.
+    detail: ($1)
+    rejectedKey: Obsidian rejected the API key (401). Copy it from the plugin settings.
+    # $1 is the HTTP status, $2 the plugin's own message.
+    writeFailed: Obsidian write failed ($1). $2
+    notAuthenticated: Obsidian is reachable but the API key was not accepted.
+    # $1 is the service name.
+    connected: Connected to $1.
+    # $1 is the service name, $2 the Obsidian version.
+    connectedVersion: Connected to $1 $2.
+
+  # $1 is the path a free name was wanted for.
+  noFreeName: Could not find a free filename near $1.
+  # $1 is the browser's own download error, e.g. FILE_NO_SPACE.
+  downloadFailed: 'Download failed: $1'
+
+  # Why an import stopped early.
+  import:
+    unrecoverable: Unrecoverable error.
+    # $1 is how many failed in a row, $2 the last of their messages.
+    stoppedAfter: 'Stopped after $1 failures in a row. Last error: $2'
 
 # Destination names. `label` is the options-page dropdown, `short` the popup badge.
 backend:

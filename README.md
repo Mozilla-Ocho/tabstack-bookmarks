@@ -267,11 +267,12 @@ Every string the UI shows lives in `locales/en.yml`, compiled by `@wxt-dev/i18n`
 leave out falls back to English.
 
 The extension name and description are in there too, so a translated store listing needs
-nothing but the file. The language follows the browser's own setting; extensions cannot
-offer their own language picker.
+nothing but the file. Error messages are included — the HTTP status stays in the text, since
+that is the part worth quoting in a bug report. The language follows the browser's own
+setting; extensions cannot offer their own language picker.
 
-One thing is still English on purpose: the error messages from `src/lib`, which are built
-out of API responses and HTTP statuses.
+A test fails if the code asks for a key the file does not define, or if the file defines one
+nothing uses, so a translation never starts from a stale list.
 
 ### Theming
 

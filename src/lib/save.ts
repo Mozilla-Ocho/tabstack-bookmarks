@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { i18n } from '#i18n';
 import { getBackend } from './backends';
 import { HttpError } from './httpError';
 import { buildFrontmatter, composeDocument, renderFilename } from './markdown';
@@ -44,20 +45,18 @@ export async function runSave(
 
   try {
     if (!isSaveableUrl(request.url)) {
-      throw new Error('Only http(s) pages can be saved.');
+      throw new Error(i18n.t('errors.notHttp'));
     }
 
     const settings = await getSettings();
     const problems = configErrors(settings);
     if (problems.length) {
-      throw new Error(`${problems.join(' ')} Open the extension options to fix.`);
+      throw new Error(i18n.t('errors.configProblems', [problems.join(' ')]));
     }
 
     const origin = backendOrigin(settings);
     if (origin && !(await hasOrigin(origin))) {
-      throw new Error(
-        `The extension is not allowed to talk to ${origin} yet. Open the options page and grant access to the destination.`,
-      );
+      throw new Error(i18n.t('errors.originNotAllowed', [origin]));
     }
 
     const wantsSummary = request.summarize ?? settings.summarize;

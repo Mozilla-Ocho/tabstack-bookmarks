@@ -9,6 +9,9 @@ import { WxtVitest } from 'wxt/testing/vitest-plugin';
 export default defineConfig({
   plugins: [WxtVitest()],
   test: {
+    // Answers browser.i18n from locales/en.yml, so assertions on user-visible
+    // strings stay meaningful. See the file for why.
+    setupFiles: ['./src/testing/setup.ts'],
     coverage: {
       // `pnpm test:coverage`. Only src/lib is measured: the entrypoints are React
       // and browser wiring that the driver scripts in scripts/ exercise instead,

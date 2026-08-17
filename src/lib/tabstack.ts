@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { i18n } from '#i18n';
 import { HttpError, NETWORK_STATUS } from './httpError';
 import type { ContentScope, Effort } from './settings';
 
@@ -37,15 +38,15 @@ export interface ExtractOptions {
 function statusMessage(status: number, body: string): string {
   switch (status) {
     case 401:
-      return 'Tabstack rejected the API key (401). Check it in the extension options.';
+      return i18n.t('errors.tabstack.rejectedKey');
     case 402:
-      return 'Tabstack organization is out of credits (402).';
+      return i18n.t('errors.tabstack.outOfCredits');
     case 422:
-      return `Tabstack could not fetch this URL (422). ${body}`.trim();
+      return i18n.t('errors.tabstack.cannotFetch', [body]).trim();
     case 429:
-      return 'Tabstack rate limit hit (429). Try again in a moment.';
+      return i18n.t('errors.tabstack.rateLimit');
     default:
-      return `Tabstack request failed (${status}). ${body}`.trim();
+      return i18n.t('errors.tabstack.failed', [String(status), body]).trim();
   }
 }
 
@@ -99,8 +100,9 @@ async function post(path: string, apiKey: string, body: unknown): Promise<Respon
     // fetch only rejects when the request never got a response. Unattended
     // imports must be able to retry this rather than record a hard failure.
     throw new TabstackError(
-      `Could not reach api.tabstack.ai. Check your connection, and that the extension ` +
-        `has permission to reach it. (${error instanceof Error ? error.message : String(error)})`,
+      i18n.t('errors.tabstack.unreachable', [
+        error instanceof Error ? error.message : String(error),
+      ]),
       NETWORK_STATUS,
     );
   }

@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { browser } from '#imports';
+import { i18n } from '#i18n';
 import type { BookmarkItem } from './bookmarks';
 import { collectBookmarks } from './bookmarks';
 import { isFatalStatus, isRetryableStatus } from './httpError';
@@ -171,12 +172,13 @@ function abortReasonFor(
   // A rejected key, an empty account or a missing repo fails every remaining
   // item too, and each attempt is charged for before storage is even tried.
   if (isFatalStatus(record?.errorStatus)) {
-    return record?.error ?? 'Unrecoverable error.';
+    return record?.error ?? i18n.t('errors.import.unrecoverable');
   }
   if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-    return `Stopped after ${consecutiveFailures} failures in a row. Last error: ${
-      record?.error ?? 'unknown'
-    }`;
+    return i18n.t('errors.import.stoppedAfter', [
+      String(consecutiveFailures),
+      record?.error ?? i18n.t('errors.unknown'),
+    ]);
   }
   return undefined;
 }
@@ -252,7 +254,7 @@ export async function processJob(
               {
                 url: item.url,
                 title: item.title,
-                error: record?.error ?? 'Unknown error',
+                error: record?.error ?? i18n.t('errors.unknown'),
               },
             ].slice(-MAX_FAILURES),
       });

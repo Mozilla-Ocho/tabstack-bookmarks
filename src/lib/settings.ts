@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { browser } from '#imports';
+import { i18n } from '#i18n';
 
 export type Effort = 'min' | 'standard' | 'max';
 export type ContentScope = 'main' | 'full';
@@ -117,15 +118,15 @@ export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
 /** Missing config that would make a save fail. */
 export function configErrors(s: Settings): string[] {
   const errors: string[] = [];
-  if (!s.apiKey.trim()) errors.push('Tabstack API key is missing.');
+  if (!s.apiKey.trim()) errors.push(i18n.t('errors.config.apiKey'));
   if (s.backend === 'github') {
-    if (!s.github.token.trim()) errors.push('GitHub token is missing.');
-    if (!s.github.owner.trim()) errors.push('GitHub owner is missing.');
-    if (!s.github.repo.trim()) errors.push('GitHub repo is missing.');
+    if (!s.github.token.trim()) errors.push(i18n.t('errors.config.githubToken'));
+    if (!s.github.owner.trim()) errors.push(i18n.t('errors.config.githubOwner'));
+    if (!s.github.repo.trim()) errors.push(i18n.t('errors.config.githubRepo'));
   }
   if (s.backend === 'obsidian') {
-    if (!s.obsidian.baseUrl.trim()) errors.push('Obsidian REST API URL is missing.');
-    if (!s.obsidian.token.trim()) errors.push('Obsidian REST API key is missing.');
+    if (!s.obsidian.baseUrl.trim()) errors.push(i18n.t('errors.config.obsidianUrl'));
+    if (!s.obsidian.token.trim()) errors.push(i18n.t('errors.config.obsidianToken'));
   }
   return errors;
 }

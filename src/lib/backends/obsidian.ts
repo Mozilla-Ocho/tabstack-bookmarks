@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { i18n } from '#i18n';
 import { HttpError, NETWORK_STATUS } from '../httpError';
 import { joinPath } from '../markdown';
 import type { ObsidianSettings, Settings } from '../settings';
@@ -18,17 +19,12 @@ function vaultUrl(cfg: ObsidianSettings, path: string): string {
 }
 
 function reachError(error: unknown, cfg: ObsidianSettings): Error {
-  const https = base(cfg).startsWith('https:');
-  return new HttpError(
-    `Could not reach Obsidian at ${base(cfg)}. Make sure Obsidian is running with the ` +
-      `Local REST API plugin enabled.${
-        https
-          ? " The plugin's HTTPS port uses a self-signed certificate that extensions reject — enable its HTTP port (default 27123) instead."
-          : ''
-      }` +
-      ` (${error instanceof Error ? error.message : String(error)})`,
-    NETWORK_STATUS,
-  );
+  const detail = error instanceof Error ? error.message : String(error);
+  const parts = [i18n.t('errors.obsidian.unreachable', [base(cfg)])];
+  // Only worth saying when they are on the port that cannot work.
+  if (base(cfg).startsWith('https:')) parts.push(i18n.t('errors.obsidian.httpsHint'));
+  parts.push(i18n.t('errors.obsidian.detail', [detail]));
+  return new HttpError(parts.join(' '), NETWORK_STATUS);
 }
 
 async function statusError(res: Response): Promise<HttpError> {
@@ -37,13 +33,10 @@ async function statusError(res: Response): Promise<HttpError> {
     .then((json) => (json as { message?: string }).message ?? '')
     .catch(() => '');
   if (res.status === 401) {
-    return new HttpError(
-      'Obsidian rejected the API key (401). Copy it from the plugin settings.',
-      res.status,
-    );
+    return new HttpError(i18n.t('errors.obsidian.rejectedKey'), res.status);
   }
   return new HttpError(
-    `Obsidian write failed (${res.status}). ${detail}`.trim(),
+    i18n.t('errors.obsidian.writeFailed', [String(res.status), detail]).trim(),
     res.status,
   );
 }
@@ -71,7 +64,7 @@ async function freePath(cfg: ObsidianSettings, path: string): Promise<string> {
     const candidate = n === 0 ? path : `${stem}-${n}${ext}`;
     if (!(await exists(cfg, candidate))) return candidate;
   }
-  throw new Error(`Could not find a free filename near ${path}.`);
+  throw new Error(i18n.t('errors.noFreeName', [path]));
 }
 
 export const obsidianBackend: StorageBackend = {
@@ -123,9 +116,11 @@ export async function verifyObsidian(cfg: ObsidianSettings): Promise<string> {
     versions?: { obsidian?: string };
   };
   if (json.authenticated === false) {
-    throw new Error('Obsidian is reachable but the API key was not accepted.');
+    throw new Error(i18n.t('errors.obsidian.notAuthenticated'));
   }
-  return `Connected to ${json.service ?? 'Obsidian'}${
-    json.versions?.obsidian ? ` ${json.versions.obsidian}` : ''
-  }.`;
+  const service = json.service ?? 'Obsidian';
+  const version = json.versions?.obsidian;
+  return version
+    ? i18n.t('errors.obsidian.connectedVersion', [service, version])
+    : i18n.t('errors.obsidian.connected', [service]);
 }

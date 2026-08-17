@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { i18n } from '#i18n';
 import { HttpError, NETWORK_STATUS } from '../httpError';
 import { joinPath } from '../markdown';
 import type { GitHubSettings, Settings } from '../settings';
@@ -27,36 +28,48 @@ function headers(token: string): HeadersInit {
 function reachError(error: unknown): Error {
   if (error instanceof TypeError) {
     return new HttpError(
-      `Could not reach api.github.com. Check your connection, and that the extension has ` +
-        `permission to reach it. (${error.message})`,
+      i18n.t('errors.github.unreachable', [error.message]),
       NETWORK_STATUS,
     );
   }
   return error instanceof Error ? error : new Error(String(error));
 }
 
+/** Which request failed, for the message when the status alone says little. */
+type Attempt = 'lookup' | 'commit' | 'check';
+
+function attemptMessage(attempt: Attempt, status: number, detail: string): string {
+  // A switch rather than a computed key, so the messages file and this file
+  // cannot drift apart without the compiler noticing.
+  switch (attempt) {
+    case 'lookup':
+      return i18n.t('errors.github.lookupFailed', [String(status), detail]);
+    case 'commit':
+      return i18n.t('errors.github.commitFailed', [String(status), detail]);
+    case 'check':
+      return i18n.t('errors.github.checkFailed', [String(status), detail]);
+  }
+}
+
 /**
  * Carries `res.status`, so an import can tell a rate limit from a token that
  * will reject all 5,000 remaining items.
  */
-async function errorFrom(res: Response, fallback: string): Promise<HttpError> {
+async function errorFrom(res: Response, attempt: Attempt): Promise<HttpError> {
   const message = await res
     .json()
     .then((json) => (json as { message?: string }).message ?? '')
     .catch(() => '');
   if (res.status === 401 || res.status === 403) {
     return new HttpError(
-      `GitHub rejected the token (${res.status}). It needs "Contents: read and write" on this repo. ${message}`.trim(),
+      i18n.t('errors.github.rejectedToken', [String(res.status), message]).trim(),
       res.status,
     );
   }
   if (res.status === 404) {
-    return new HttpError(
-      `GitHub repo or branch not found (404). Check owner, repo and branch. ${message}`.trim(),
-      res.status,
-    );
+    return new HttpError(i18n.t('errors.github.notFound', [message]).trim(), res.status);
   }
-  return new HttpError(`${fallback} (${res.status}). ${message}`.trim(), res.status);
+  return new HttpError(attemptMessage(attempt, res.status, message).trim(), res.status);
 }
 
 /** Returns the blob sha of an existing file, or null when it does not exist. */
@@ -64,10 +77,10 @@ async function getSha(cfg: GitHubSettings, path: string): Promise<string | null>
   const url = `${API}/repos/${cfg.owner}/${cfg.repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(cfg.branch)}`;
   const res = await fetch(url, { headers: headers(cfg.token) });
   if (res.status === 404) return null;
-  if (!res.ok) throw await errorFrom(res, 'GitHub lookup failed');
+  if (!res.ok) throw await errorFrom(res, 'lookup');
   const json = (await res.json()) as { sha?: string; type?: string };
   if (json.type && json.type !== 'file') {
-    throw new Error(`A ${json.type} already exists at ${path}.`);
+    throw new Error(i18n.t('errors.github.notAFile', [json.type, path]));
   }
   return json.sha ?? null;
 }
@@ -85,7 +98,7 @@ async function freePath(cfg: GitHubSettings, path: string): Promise<string> {
     const candidate = n === 0 ? path : `${stem}-${n}${ext}`;
     if ((await getSha(cfg, candidate)) === null) return candidate;
   }
-  throw new Error(`Could not find a free filename near ${path}.`);
+  throw new Error(i18n.t('errors.noFreeName', [path]));
 }
 
 export const githubBackend: StorageBackend = {
@@ -120,7 +133,7 @@ async function commit(payload: SavePayload, settings: Settings): Promise<SaveRes
     },
   );
 
-  if (!res.ok) throw await errorFrom(res, 'GitHub commit failed');
+  if (!res.ok) throw await errorFrom(res, 'commit');
 
   const json = (await res.json()) as { content?: { html_url?: string } };
 
@@ -142,14 +155,14 @@ export async function verifyGitHub(cfg: GitHubSettings): Promise<string> {
   } catch (error) {
     throw reachError(error);
   }
-  if (!res.ok) throw await errorFrom(res, 'GitHub check failed');
+  if (!res.ok) throw await errorFrom(res, 'check');
   const repo = (await res.json()) as {
     full_name: string;
     default_branch: string;
     permissions?: { push?: boolean };
   };
   if (repo.permissions && !repo.permissions.push) {
-    throw new Error(`Token cannot write to ${repo.full_name}.`);
+    throw new Error(i18n.t('errors.github.cannotWrite', [repo.full_name]));
   }
-  return `Connected to ${repo.full_name} (default branch: ${repo.default_branch}).`;
+  return i18n.t('errors.github.connected', [repo.full_name, repo.default_branch]);
 }

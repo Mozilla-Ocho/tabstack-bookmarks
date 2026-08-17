@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { browser } from '#imports';
+import { i18n } from '#i18n';
 import { joinPath } from '../markdown';
 import type { Settings } from '../settings';
 import {
@@ -75,7 +76,7 @@ function waitForFilename(id: number, fallback: string): Promise<string> {
       if (delta.error?.current) {
         browser.downloads.onChanged.removeListener(onChanged);
         clearTimeout(timer);
-        reject(new Error(`Download failed: ${delta.error.current}`));
+        reject(new Error(i18n.t('errors.downloadFailed', [delta.error.current])));
         return;
       }
       if (delta.state?.current === 'complete') {
