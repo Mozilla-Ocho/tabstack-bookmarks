@@ -53,7 +53,7 @@ jobs:
       - run: pnpm zip:firefox
       - run: pnpm zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: packages
           # WXT builds into `.output`, and upload-artifact skips dot-prefixed
