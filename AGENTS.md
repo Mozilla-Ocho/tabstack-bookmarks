@@ -117,11 +117,26 @@ worse than an error message.
 **Render errors must not blank a page.** Extension pages get no browser error UI, so each
 entrypoint is wrapped in `ErrorBoundary`. Keep new entrypoints wrapped.
 
+**A failed save is retried, an unsaveable one is not.** `retryQueue.ts` holds the original
+`SaveRequest` — the edited title, the tags, the note — and the background re-runs it on a
+one-minute alarm at 1, 5 then 15 minutes. Only `isRetryableStatus()` failures are queued, so
+nobody pays for three more attempts at a rejected key or an unfetchable page, and the alarm
+only runs while something is waiting. A success calls `dropPending()`; forget that and a saved
+page gets saved again.
+
 **Work the background does not await goes through `detached()`.** A bare `void promise()`
 turns a storage failure into an unhandled rejection and a run that silently stopped. Use
 `void` only for helpers that already swallow their own errors (`broadcast`, `paintBadge`).
 
 ## Settings
+
+**Preferences sync; credentials never do.** `setSettings()` writes the whole object to
+`storage.local` and everything _except_ the three tokens to `storage.sync`. `getSettings()`
+prefers `sync` for preferences — both areas are written together, so they differ only when
+another device changed something — and takes `apiKey`, `github.token` and `obsidian.token`
+from `local` alone. `storage.sync` travels through the user's browser account; an API key is
+not ours to put there. A sync area that is missing, disabled or over quota must never stop a
+save: both reads and the write are wrapped, and local already has everything.
 
 `Settings` in `src/lib/settings.ts` is the single schema. Adding a field means: the type,
 `DEFAULT_SETTINGS`, and — for a nested group — the deep merge in `getSettings()`. Miss the
@@ -201,6 +216,7 @@ message assertion in the suite meaningless.
 | `savedIndexWrites`   | Saves since the last prune sweep                  |
 | `savedIndexMigrated` | Set once the pre-index migration has run          |
 | `importJob`          | The running/most recent import job                |
+| `retrySaves`         | Saves waiting for another attempt                 |
 
 The library page reads the index through the `searchSaved` message rather than touching
 storage directly: only the background should be scanning 50,000 keys, and only once per

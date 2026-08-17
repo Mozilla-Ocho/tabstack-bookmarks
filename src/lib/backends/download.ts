@@ -50,7 +50,7 @@ export const downloadBackend: StorageBackend = {
       });
 
       const finalName = await waitForFilename(id, filename);
-      return { location: finalName };
+      return { location: finalName, downloadId: id };
     } finally {
       // Give the download a tick to read the blob before dropping it.
       setTimeout(revoke, 60_000);

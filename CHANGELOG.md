@@ -11,6 +11,17 @@ All notable changes to this extension. Format follows
 - A library page: everything ever saved, searchable by title, URL or the path it landed at,
   with per-row re-save and forget. The durable index held up to 50,000 entries and nothing
   could see past the thirty most recent. Reachable from the options page and the popup.
+- Failed saves are retried by themselves. A single save had one chance, so a dropped
+  connection lost the page; the original request — title, tags, note — is now queued and
+  retried at 1, 5 and 15 minutes. Only failures that could succeed are queued, so a rejected
+  key or an unfetchable page is not retried at your expense, and the popup says a retry is
+  coming instead of showing a dead end.
+- Notifications do something when clicked: a saved page opens its file (the repo URL, the
+  `obsidian://` link, or reveal-in-folder for a download), and anything else opens the
+  library.
+- Preferences sync across devices through `storage.sync` — template, destination, folders,
+  tags, effort. The API key, the GitHub token and the Obsidian key are deliberately excluded
+  and stay on the device.
 - Localization, via `@wxt-dev/i18n`. Every string the UI shows now lives in
   `locales/en.yml`, including the extension name and description, which the manifest picks
   up as `__MSG_` references. A translation is one more file — `locales/de.yml` — with no code

@@ -146,7 +146,11 @@ export async function runSave(
       status: 'done',
       location: result.location,
       link: result.link,
+      downloadId: result.downloadId,
       error: undefined,
+      // A previous attempt may have left these behind.
+      errorStatus: undefined,
+      retryAt: undefined,
     });
   } catch (error) {
     return advance({

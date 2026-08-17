@@ -55,6 +55,8 @@ popup:
   savedOn: on $1
   view: view
   summarySkipped: 'Summary skipped: $1'
+  # Shown under a failed save that the background will attempt again by itself.
+  willRetry: Trying again shortly — you can close this.
   titleLabel: Title
   tagsLabel: Tags (comma separated)
   tagsPlaceholder: reading, research

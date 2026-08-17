@@ -74,6 +74,12 @@ Open the extension's options page:
 A page you saved months ago still shows as saved when you reopen the popup, and
 **Re-save** overwrites that same file instead of making a second copy.
 
+If a save fails because something was unreachable — closed laptop, hotel wifi, a rate limit —
+it is retried by itself at 1, 5 and 15 minutes, with the title, tags and note you gave it. A
+failure that cannot succeed on a retry (a rejected key, a page the API cannot fetch) is not
+retried, because each attempt costs credits. Clicking the notification opens what was saved:
+the file in your repo or vault, or the download revealed in your file manager.
+
 Only `http` and `https` pages can be saved — the API has to be able to fetch the URL, so
 local files and `about:` pages are rejected up front rather than failing later.
 
@@ -242,6 +248,7 @@ src/lib/
   settings.ts       schema, defaults, validation, backend origins
   saveStore.ts      30-record UI history + the single final-write path
   savedIndex.ts     durable url → {path, backend, savedAt} index, one key per URL
+  retryQueue.ts     failed saves waiting for another attempt, with backoff
   bookmarks.ts      bookmark tree → flat saveable items, folder counts
   importQueue.ts    persisted import job: retry, backoff, cancel, resume
   permissions.ts    runtime host-permission checks
@@ -351,6 +358,17 @@ from a real browser, not mocked up). CI runs typecheck, lint, formatting, tests 
 coverage thresholds, both builds and `web-ext lint` on every push, and uploads both store
 packages as artifacts. Pushing a `v*` tag builds the release packages and drafts the GitHub
 release. Dependabot groups weekly dependency updates.
+
+## Settings on more than one machine
+
+Preferences follow you through the browser's own sync: filename template, destination and its
+folders, default tags, effort, and the summary switches. The three credentials — Tabstack API
+key, GitHub token, Obsidian key — deliberately stay on the device, because `storage.sync`
+travels through your browser account. A second machine picks up how you like things and asks
+only for its own keys.
+
+Nothing breaks if sync is off, signed out, or blocked by policy: everything is written locally
+too, and the local copy is what the extension actually runs on.
 
 ## Privacy, security and licence
 

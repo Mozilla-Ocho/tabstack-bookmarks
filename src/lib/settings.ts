@@ -96,22 +96,96 @@ function migrate(raw: Partial<Settings>): Partial<Settings> {
   return raw;
 }
 
+/**
+ * Everything except the three credentials, which stay on the device.
+ *
+ * `storage.sync` is readable by the browser's sync service and, on Chrome,
+ * travels through the user's Google account. An API key and a GitHub token are
+ * not ours to put there — see SECURITY.md. Preferences are: retyping a filename
+ * template on every machine is the kind of friction people uninstall over.
+ */
+export interface SyncedSettings extends Omit<Settings, 'apiKey' | 'github' | 'obsidian'> {
+  github: Omit<GitHubSettings, 'token'>;
+  obsidian: Omit<ObsidianSettings, 'token'>;
+}
+
+function syncable(s: Settings): SyncedSettings {
+  const { apiKey: _apiKey, github, obsidian, ...rest } = s;
+  const { token: _githubToken, ...githubRest } = github;
+  const { token: _obsidianToken, ...obsidianRest } = obsidian;
+  return { ...rest, github: githubRest, obsidian: obsidianRest };
+}
+
+async function readArea(
+  area: 'local' | 'sync',
+  key: string,
+): Promise<Record<string, unknown>> {
+  try {
+    return ((await browser.storage[area].get(key))[key] ?? {}) as Record<string, unknown>;
+  } catch {
+    // Firefox without a signed-in account, a disabled sync service, an
+    // enterprise policy: none of that should stop the extension working.
+    return {};
+  }
+}
+
+/**
+ * The one rule: preferences come from `sync` when it has them, credentials only
+ * ever from `local`.
+ *
+ * Both areas are written together by `setSettings`, so they only differ when
+ * *another* device changed something — which is exactly when the synced copy is
+ * the newer one. A device that has never synced sees an empty `sync` and falls
+ * back to everything it has locally.
+ */
 export async function getSettings(): Promise<Settings> {
-  const stored = await browser.storage.local.get(KEY);
-  const raw = migrate((stored[KEY] ?? {}) as Partial<Settings>);
+  const [local, synced] = await Promise.all([
+    readArea('local', KEY),
+    readArea('sync', KEY),
+  ]);
+
+  const raw = migrate({ ...local, ...synced } as Partial<Settings>);
+  const device = local as Partial<Settings>;
+
   return {
     ...DEFAULT_SETTINGS,
     ...raw,
-    github: { ...DEFAULT_SETTINGS.github, ...(raw.github ?? {}) },
-    download: { ...DEFAULT_SETTINGS.download, ...(raw.download ?? {}) },
-    obsidian: { ...DEFAULT_SETTINGS.obsidian, ...(raw.obsidian ?? {}) },
+    github: {
+      ...DEFAULT_SETTINGS.github,
+      ...(local.github as Partial<GitHubSettings> | undefined),
+      ...(synced.github as Partial<GitHubSettings> | undefined),
+      token: device.github?.token ?? '',
+    },
+    download: {
+      ...DEFAULT_SETTINGS.download,
+      ...(local.download as Partial<DownloadSettings> | undefined),
+      ...(synced.download as Partial<DownloadSettings> | undefined),
+    },
+    obsidian: {
+      ...DEFAULT_SETTINGS.obsidian,
+      ...(local.obsidian as Partial<ObsidianSettings> | undefined),
+      ...(synced.obsidian as Partial<ObsidianSettings> | undefined),
+      token: device.obsidian?.token ?? '',
+    },
+    apiKey: device.apiKey ?? '',
     schemaVersion: SCHEMA_VERSION,
   };
 }
 
 export async function setSettings(patch: Partial<Settings>): Promise<Settings> {
   const next = { ...(await getSettings()), ...patch };
+
+  // Local gets everything, including the credentials: this device has to keep
+  // working when sync is unavailable.
   await browser.storage.local.set({ [KEY]: next });
+  try {
+    await browser.storage.sync.set({ [KEY]: syncable(next) });
+  } catch (error) {
+    // Over quota, no account, sync disabled by policy. The settings are already
+    // saved; syncing them is the part that failed.
+    console.warn('[tabstack] settings did not sync:', error);
+  }
+
   return next;
 }
 

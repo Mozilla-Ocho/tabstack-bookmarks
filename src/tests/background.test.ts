@@ -29,6 +29,7 @@ vi.mock('@/src/lib/bookmarks', () => ({
 
 import background from '@/entrypoints/background';
 import { runSave } from '@/src/lib/save';
+import { listPending, queueRetry } from '@/src/lib/retryQueue';
 import { getRecord } from '@/src/lib/saveStore';
 
 const save = vi.mocked(runSave);
@@ -76,7 +77,18 @@ function fakeEvent<Args extends unknown[]>() {
   };
 }
 
+/** A whole Alarm, which is what the listener's type asks for. */
+function alarm(name: string) {
+  return {
+    name,
+    scheduledTime: Date.now(),
+    periodInMinutes: 1,
+    persistAcrossSessions: false,
+  };
+}
+
 let onCommand: ReturnType<typeof fakeEvent<[string]>>;
+let onNotificationClicked: ReturnType<typeof fakeEvent<[string]>>;
 let onMenuClicked: ReturnType<
   typeof fakeEvent<
     [Record<string, unknown>, { title?: string; url?: string } | undefined]
@@ -101,7 +113,16 @@ beforeEach(() => {
     create: vi.fn(),
     onClicked: onMenuClicked,
   } as never;
+  onNotificationClicked = fakeEvent<[string]>();
   fakeBrowser.notifications.create = vi.fn(async () => 'id') as never;
+  fakeBrowser.notifications.clear = vi.fn(async () => true) as never;
+  (fakeBrowser.notifications as unknown as Record<string, unknown>).onClicked =
+    onNotificationClicked;
+  fakeBrowser.tabs.create = vi.fn(async () => ({})) as never;
+  fakeBrowser.downloads = {
+    show: vi.fn(async () => {}),
+    showDefaultFolder: vi.fn(),
+  } as never;
   fakeBrowser.action = {
     setBadgeText: vi.fn(async () => {}),
     setBadgeBackgroundColor: vi.fn(async () => {}),
@@ -302,7 +323,9 @@ describe('notifications', () => {
 
     await send({ type: 'save', url: 'https://ex.com/a', title: 'A' });
 
+    // The id carries the URL, because a click hands back nothing else.
     expect(fakeBrowser.notifications.create).toHaveBeenCalledWith(
+      'tabstack-saved:https://ex.com/a',
       expect.objectContaining({
         title: 'Saved to Tabstack',
         message: expect.stringContaining('tabstack/a.md'),
@@ -320,7 +343,185 @@ describe('notifications', () => {
     await send({ type: 'save', url: 'https://ex.com/a', title: 'A' });
 
     expect(fakeBrowser.notifications.create).toHaveBeenCalledWith(
+      'tabstack-saved:https://ex.com/a',
       expect.objectContaining({ title: 'Save failed', message: 'boom' }),
+    );
+  });
+});
+
+describe('retrying a failed save', () => {
+  /** An import has always retried; a single save used to get one chance. */
+  it('queues another attempt for a failure that could succeed', async () => {
+    save.mockImplementation(async (request, onUpdate) => {
+      const record = done({
+        url: request.url,
+        status: 'error',
+        error: 'Could not reach api.tabstack.ai.',
+        errorStatus: 0,
+      });
+      onUpdate(record);
+      return record;
+    });
+
+    const reply = await send<SaveRecord>({
+      type: 'save',
+      url: 'https://ex.com/a',
+      title: 'A',
+    });
+
+    // The popup can say so instead of showing a dead end.
+    expect(reply.retryAt).toBeGreaterThan(Date.now());
+    expect(await listPending()).toHaveLength(1);
+    expect(await fakeBrowser.alarms.get('tabstack-retry-saves')).toBeDefined();
+  });
+
+  it('does not queue a failure that will always fail', async () => {
+    save.mockImplementation(async (request, onUpdate) => {
+      const record = done({
+        url: request.url,
+        status: 'error',
+        error: 'Tabstack rejected the API key (401).',
+        errorStatus: 401,
+      });
+      onUpdate(record);
+      return record;
+    });
+
+    const reply = await send<SaveRecord>({
+      type: 'save',
+      url: 'https://ex.com/a',
+      title: 'A',
+    });
+
+    expect(reply.retryAt).toBeUndefined();
+    expect(await listPending()).toEqual([]);
+  });
+
+  it('runs a due retry with the request that was originally asked for', async () => {
+    await queueRetry(
+      done({
+        status: 'error',
+        error: 'Could not reach api.tabstack.ai.',
+        errorStatus: 0,
+      }),
+      { type: 'save', url: 'https://ex.com/a', title: 'Edited', tags: ['keep'] },
+      Date.now() - 120_000,
+    );
+
+    await fakeBrowser.alarms.onAlarm.trigger(alarm('tabstack-retry-saves'));
+    await vi.waitFor(() => expect(save).toHaveBeenCalled());
+
+    expect(save.mock.calls[0]![0]).toMatchObject({
+      url: 'https://ex.com/a',
+      title: 'Edited',
+      tags: ['keep'],
+    });
+  });
+
+  it('stops retrying, and stops the alarm, once one succeeds', async () => {
+    await queueRetry(
+      done({ status: 'error', error: 'offline', errorStatus: 0 }),
+      { type: 'save', url: 'https://ex.com/a', title: 'A' },
+      Date.now() - 120_000,
+    );
+
+    await fakeBrowser.alarms.onAlarm.trigger(alarm('tabstack-retry-saves'));
+    await vi.waitFor(async () => expect(await listPending()).toEqual([]));
+    expect(await fakeBrowser.alarms.get('tabstack-retry-saves')).toBeUndefined();
+  });
+
+  it('leaves a retry alone until it is due', async () => {
+    await queueRetry(
+      done({ status: 'error', error: 'offline', errorStatus: 0 }),
+      { type: 'save', url: 'https://ex.com/a', title: 'A' },
+      Date.now(),
+    );
+
+    await fakeBrowser.alarms.onAlarm.trigger(alarm('tabstack-retry-saves'));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(save).not.toHaveBeenCalled();
+    expect(await listPending()).toHaveLength(1);
+  });
+});
+
+describe('clicking a notification', () => {
+  it('opens the file in the repo it was committed to', async () => {
+    save.mockImplementation(async (request, onUpdate) => {
+      const record = done({
+        url: request.url,
+        link: 'https://github.com/me/notes/blob/main/a.md',
+      });
+      onUpdate(record);
+      return record;
+    });
+    await send({ type: 'save', url: 'https://ex.com/a', title: 'A' });
+
+    onNotificationClicked.trigger('tabstack-saved:https://ex.com/a');
+
+    await vi.waitFor(() =>
+      expect(fakeBrowser.tabs.create).toHaveBeenCalledWith({
+        url: 'https://github.com/me/notes/blob/main/a.md',
+      }),
+    );
+    expect(fakeBrowser.notifications.clear).toHaveBeenCalled();
+  });
+
+  /** A downloaded file has no URL, so the only way in is the file manager. */
+  it('reveals a downloaded file', async () => {
+    save.mockImplementation(async (request, onUpdate) => {
+      const record = done({ url: request.url, downloadId: 42 });
+      onUpdate(record);
+      return record;
+    });
+    await send({ type: 'save', url: 'https://ex.com/a', title: 'A' });
+
+    onNotificationClicked.trigger('tabstack-saved:https://ex.com/a');
+
+    await vi.waitFor(() => expect(fakeBrowser.downloads.show).toHaveBeenCalledWith(42));
+  });
+
+  it('falls back to the download folder when the file has gone', async () => {
+    save.mockImplementation(async (request, onUpdate) => {
+      const record = done({ url: request.url, downloadId: 42 });
+      onUpdate(record);
+      return record;
+    });
+    await send({ type: 'save', url: 'https://ex.com/a', title: 'A' });
+    fakeBrowser.downloads.show = vi.fn(async () => {
+      throw new Error('no such download');
+    }) as never;
+
+    onNotificationClicked.trigger('tabstack-saved:https://ex.com/a');
+
+    await vi.waitFor(() =>
+      expect(fakeBrowser.downloads.showDefaultFolder).toHaveBeenCalled(),
+    );
+  });
+
+  it('opens the library for a save with nothing to point at', async () => {
+    save.mockImplementation(async (request, onUpdate) => {
+      const record = done({ url: request.url, status: 'error', error: 'boom' });
+      onUpdate(record);
+      return record;
+    });
+    await send({ type: 'save', url: 'https://ex.com/a', title: 'A' });
+
+    onNotificationClicked.trigger('tabstack-saved:https://ex.com/a');
+
+    await vi.waitFor(() =>
+      expect(fakeBrowser.tabs.create).toHaveBeenCalledWith({
+        url: expect.stringContaining('library.html'),
+      }),
+    );
+  });
+
+  it('opens the library from the import notification', async () => {
+    onNotificationClicked.trigger('tabstack-import');
+
+    await vi.waitFor(() =>
+      expect(fakeBrowser.tabs.create).toHaveBeenCalledWith({
+        url: expect.stringContaining('library.html'),
+      }),
     );
   });
 });

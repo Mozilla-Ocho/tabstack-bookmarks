@@ -24,6 +24,12 @@ Three credentials, all supplied by the user and all stored in `browser.storage.l
 - a GitHub personal access token, when the GitHub destination is in use,
 - the Obsidian Local REST API key, when the Obsidian destination is in use.
 
+All three stay in `storage.local`. Preferences — the filename template, the destination, the
+folder names — are also written to `storage.sync` so a second machine does not start from
+scratch, but the credentials are deliberately excluded: `storage.sync` travels through the
+browser account, and a token there is a token in someone else's infrastructure.
+`src/lib/settings.test.ts` asserts that the synced copy contains no secret.
+
 `storage.local` is unencrypted, per-profile, and readable by anyone who can read the
 browser profile directory or run code in the extension's own context. Browsers give
 extensions nothing better, so treat these tokens as you would a config file on disk:

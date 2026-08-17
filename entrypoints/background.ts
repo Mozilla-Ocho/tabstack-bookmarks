@@ -20,6 +20,7 @@ import type {
   SaveRecord,
   SaveRequest,
 } from '@/src/lib/messages';
+import { dropPending, duePending, listPending, queueRetry } from '@/src/lib/retryQueue';
 import { isSaveableUrl, runSave } from '@/src/lib/save';
 import {
   deleteRecord,
@@ -33,6 +34,13 @@ import { migrateFromRecent, searchSaved } from '@/src/lib/savedIndex';
 const MENU_PAGE = 'tabstack-save-page';
 const MENU_LINK = 'tabstack-save-link';
 const IMPORT_ALARM = 'tabstack-import-resume';
+const RETRY_ALARM = 'tabstack-retry-saves';
+/**
+ * Notification ids carry what a click should act on. Chrome and Firefox both hand
+ * the id back and nothing else, so it is the only channel there is.
+ */
+const SAVE_NOTIFICATION = 'tabstack-saved:';
+const IMPORT_NOTIFICATION = 'tabstack-import';
 
 /**
  * Starts work nothing is waiting on, and turns a rejection into a log line.
@@ -91,9 +99,21 @@ export default defineBackground(() => {
   // suspended mid-run, so a periodic alarm picks the queue back up.
   browser.alarms?.onAlarm.addListener((alarm) => {
     if (alarm.name === IMPORT_ALARM) detached('resume import', resumeImport());
+    if (alarm.name === RETRY_ALARM) detached('retry saves', runDueRetries());
   });
-  browser.runtime.onStartup?.addListener(() => detached('resume import', resumeImport()));
+  browser.runtime.onStartup?.addListener(() => {
+    detached('resume import', resumeImport());
+    detached('retry saves', runDueRetries());
+  });
   detached('resume import', resumeImport());
+  // A retry may have come due while the browser was closed.
+  detached('retry saves', runDueRetries());
+
+  // A notification that does nothing when clicked is a notification that trained
+  // the user to ignore it.
+  browser.notifications?.onClicked?.addListener((id) => {
+    detached('open from notification', openFromNotification(id));
+  });
 
   browser.contextMenus.onClicked.addListener((info, tab) => {
     const url = info.menuItemId === MENU_LINK ? info.linkUrl : (info.pageUrl ?? tab?.url);
@@ -185,7 +205,7 @@ async function notifyImport(job: ImportJob): Promise<void> {
   // The stored list is capped; the count is not.
   const failed = job.failed ?? job.failures.length;
   try {
-    await browser.notifications.create({
+    await browser.notifications.create(IMPORT_NOTIFICATION, {
       type: 'basic',
       iconUrl: browser.runtime.getURL('/icon/96.png'),
       title: job.cancelled
@@ -199,6 +219,41 @@ async function notifyImport(job: ImportJob): Promise<void> {
   } catch {
     // notifications blocked
   }
+}
+
+/**
+ * What a click on a notification opens.
+ *
+ * A saved page opens the file: its URL for GitHub or Obsidian, or the browser's
+ * own reveal-in-folder for a download, which has no URL. Anything else — a
+ * failure, a finished import, a file we cannot point at — opens the library,
+ * which is where the answer to "what happened to that page?" lives.
+ */
+async function openFromNotification(id: string): Promise<void> {
+  const library = browser.runtime.getURL('/library.html');
+
+  if (!id.startsWith(SAVE_NOTIFICATION)) {
+    await browser.tabs.create({ url: library });
+    await browser.notifications.clear(id);
+    return;
+  }
+
+  const record = await getRecordOrIndexed(id.slice(SAVE_NOTIFICATION.length));
+
+  if (record?.link) {
+    await browser.tabs.create({ url: record.link });
+  } else if (record?.downloadId !== undefined) {
+    try {
+      await browser.downloads.show(record.downloadId);
+    } catch {
+      // Erased from the download history, or the file has been moved.
+      await browser.downloads.showDefaultFolder();
+    }
+  } else {
+    await browser.tabs.create({ url: library });
+  }
+
+  await browser.notifications.clear(id);
 }
 
 async function createMenus(): Promise<void> {
@@ -220,15 +275,46 @@ async function createMenus(): Promise<void> {
 }
 
 async function handleSave(request: SaveRequest): Promise<SaveRecord> {
-  const record = await runSave(request, (partial) => {
+  let record = await runSave(request, (partial) => {
     detached('store progress', putRecord(partial));
     void broadcast(partial);
     void paintBadge(partial);
   });
 
+  if (record.status === 'done') {
+    await dropPending(request.url);
+  } else {
+    // A dropped connection or a rate limit is worth another go later; the popup
+    // that asked has long since closed, so an alarm does the asking.
+    const queued = await queueRetry(record, request, Date.now());
+    if (queued) record = { ...record, retryAt: queued.nextAt };
+    await scheduleRetries();
+  }
+
   await rememberSave(record);
+  await broadcast(record);
   await notify(record);
   return record;
+}
+
+/** Runs the alarm only while something is actually waiting. */
+async function scheduleRetries(): Promise<void> {
+  const pending = await listPending();
+  if (pending.length === 0) {
+    await browser.alarms?.clear(RETRY_ALARM);
+    return;
+  }
+  await browser.alarms?.create(RETRY_ALARM, { periodInMinutes: 1 });
+}
+
+/** Re-runs the saves whose backoff has elapsed. */
+async function runDueRetries(): Promise<void> {
+  for (const entry of await duePending(Date.now())) {
+    // handleSave re-queues with a longer backoff, or drops the entry when it
+    // succeeds or runs out of attempts.
+    await handleSave(entry.request);
+  }
+  await scheduleRetries();
 }
 
 /** The popup may be closed; a dropped message is expected, not an error. */
@@ -265,7 +351,7 @@ async function paintBadge(record: SaveRecord): Promise<void> {
 async function notify(record: SaveRecord): Promise<void> {
   if (record.status !== 'done' && record.status !== 'error') return;
   try {
-    await browser.notifications.create({
+    await browser.notifications.create(`${SAVE_NOTIFICATION}${record.url}`, {
       type: 'basic',
       iconUrl: browser.runtime.getURL('/icon/96.png'),
       title:

@@ -202,6 +202,9 @@ export function App() {
             </>
           )}
           {record.status === 'error' && record.error}
+          {record.retryAt !== undefined && (
+            <div className="muted">{i18n.t('popup.willRetry')}</div>
+          )}
           {record.summaryError && (
             <div className="muted">
               {i18n.t('popup.summarySkipped', [record.summaryError])}

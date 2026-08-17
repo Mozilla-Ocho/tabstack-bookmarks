@@ -20,6 +20,12 @@ export interface SaveResult {
   location: string;
   /** Clickable URL, when the backend has one. */
   link?: string;
+  /**
+   * The browser's download id, for `downloads.show`. A downloaded file has no
+   * URL to link to, so revealing it in the file manager is the only way to open
+   * what was just saved.
+   */
+  downloadId?: number;
 }
 
 export interface StorageBackend {

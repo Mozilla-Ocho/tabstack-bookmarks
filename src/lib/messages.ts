@@ -25,6 +25,10 @@ export interface SaveRecord {
   error?: string;
   /** HTTP status when the failure came from the Tabstack API. */
   errorStatus?: number;
+  /** Epoch ms of the next automatic attempt, when one is queued. */
+  retryAt?: number;
+  /** Set by the downloads backend, so a notification can reveal the file. */
+  downloadId?: number;
   bytes?: number;
   /** AI summary, when summaries are on. */
   summary?: string;
