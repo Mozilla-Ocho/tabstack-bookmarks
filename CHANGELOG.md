@@ -6,6 +6,8 @@ All notable changes to this extension. Format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-17
+
 ### Added
 
 - An error boundary on every page, so a render error shows the message and a reload button
@@ -45,8 +47,21 @@ All notable changes to this extension. Format follows
   values were already sanitised; the template's own dot segments are now dropped too.
 - Store screenshots were 2560×1600 retina captures, which the Chrome Web Store rejects;
   they are now the 1280×800 it accepts.
+- Editing the options page and closing the tab threw the edits away without a word. There is
+  now an "Unsaved changes" marker and a `beforeunload` guard while edits are pending.
+- Failure lists in the import page were keyed by URL alone, which collides when the same
+  page is bookmarked in two folders.
+- Work the background does not await — eight promises, most of them a bare `void` — turned a
+  storage failure into an unhandled rejection and a run that silently stopped. They log
+  under `[tabstack]` now.
+- `scripts/chrome-drive.mjs` died on cleanup with `ENOTEMPTY` when Chrome was still flushing
+  its profile, losing the exit code the run had earned.
 
 ### Changed
+
+- An import kept every failure in the job object, which is one storage key rewritten and
+  broadcast per item. It keeps the last 100 and counts the rest in `failed`, and the page
+  says when the list is truncated.
 
 - Pruning the saved-URL index no longer scans all of `storage.local` on every single save —
   it sweeps once per 250 saves. A 5,000-bookmark import did 5,000 full-index scans.
