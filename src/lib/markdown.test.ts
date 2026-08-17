@@ -70,6 +70,21 @@ describe('renderFilename', () => {
     ).toBe('a-b-c-d-e-f-g-h-i.md');
   });
 
+  it('drops dot segments from the template itself', () => {
+    // The template is free text in the options page. Tokens are sanitised, but
+    // the slashes around them are not, so `..` has to be dropped here.
+    expect(
+      renderFilename('../../{slug}', { title: 'Post', url: 'https://x.com', date: DATE }),
+    ).toBe('post.md');
+    expect(
+      renderFilename('./notes/{slug}', {
+        title: 'Post',
+        url: 'https://x.com',
+        date: DATE,
+      }),
+    ).toBe('notes/post.md');
+  });
+
   it('leaves unknown tokens alone', () => {
     expect(
       renderFilename('{nope}-{slug}.md', {

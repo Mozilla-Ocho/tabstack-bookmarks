@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { HttpError, NETWORK_STATUS } from '../httpError';
 import { joinPath } from '../markdown';
 import type { GitHubSettings, Settings } from '../settings';
 import {
@@ -25,30 +26,37 @@ function headers(token: string): HeadersInit {
 /** fetch rejects with a TypeError when the request never reached GitHub. */
 function reachError(error: unknown): Error {
   if (error instanceof TypeError) {
-    return new Error(
+    return new HttpError(
       `Could not reach api.github.com. Check your connection, and that the extension has ` +
         `permission to reach it. (${error.message})`,
+      NETWORK_STATUS,
     );
   }
   return error instanceof Error ? error : new Error(String(error));
 }
 
-async function errorFrom(res: Response, fallback: string): Promise<Error> {
+/**
+ * Carries `res.status`, so an import can tell a rate limit from a token that
+ * will reject all 5,000 remaining items.
+ */
+async function errorFrom(res: Response, fallback: string): Promise<HttpError> {
   const message = await res
     .json()
     .then((json) => (json as { message?: string }).message ?? '')
     .catch(() => '');
   if (res.status === 401 || res.status === 403) {
-    return new Error(
+    return new HttpError(
       `GitHub rejected the token (${res.status}). It needs "Contents: read and write" on this repo. ${message}`.trim(),
+      res.status,
     );
   }
   if (res.status === 404) {
-    return new Error(
+    return new HttpError(
       `GitHub repo or branch not found (404). Check owner, repo and branch. ${message}`.trim(),
+      res.status,
     );
   }
-  return new Error(`${fallback} (${res.status}). ${message}`.trim());
+  return new HttpError(`${fallback} (${res.status}). ${message}`.trim(), res.status);
 }
 
 /** Returns the blob sha of an existing file, or null when it does not exist. */

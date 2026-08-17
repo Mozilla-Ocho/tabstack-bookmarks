@@ -186,7 +186,8 @@ pnpm dev:firefox     # Firefox with HMR
 pnpm dev             # Chrome with HMR
 pnpm lint            # eslint (type-aware, plus react-hooks)
 pnpm format          # prettier --write .
-pnpm test            # vitest — 110 tests
+pnpm test            # vitest — 182 tests
+pnpm test:coverage   # with thresholds over src/lib
 pnpm compile         # tsc --noEmit
 pnpm build:firefox   # production build
 pnpm zip:firefox     # AMO package + sources zip
@@ -303,14 +304,17 @@ each size so the bars stay crisp at 16px.
 `RELEASING.md` covers the checks, version bump and both store submissions.
 `store/LISTING.md` holds the listing copy, permission justifications and the answers each
 store's review form asks for, and `store/screenshots/` the 1280×800 captures (generated
-from a real browser, not mocked up). CI runs typecheck, lint, formatting, tests, both builds and `web-ext lint` on every push,
-and uploads the packaged Firefox zip plus its sources archive as artifacts. Dependabot
-groups weekly dependency updates.
+from a real browser, not mocked up). CI runs typecheck, lint, formatting, tests with
+coverage thresholds, both builds and `web-ext lint` on every push, and uploads both store
+packages as artifacts. Pushing a `v*` tag builds the release packages and drafts the GitHub
+release. Dependabot groups weekly dependency updates.
 
-## Privacy and licence
+## Privacy, security and licence
 
 [PRIVACY.md](PRIVACY.md) documents every byte that leaves your machine and everything
-stored on it. The extension is [MPL-2.0](LICENSE) licensed.
+stored on it. [SECURITY.md](SECURITY.md) covers how to report a vulnerability, how the
+tokens you paste are stored, and the boundaries the code keeps. The extension is
+[MPL-2.0](LICENSE) licensed.
 
 ## Roadmap
 

@@ -15,6 +15,14 @@ All notable changes to this extension. Format follows
 - Dependabot, grouped weekly.
 - MPL-2.0 headers on source files, `CONTRIBUTING.md`, issue templates, and a Chrome Web
   Store promo tile.
+- `SECURITY.md`: how to report a vulnerability, what the extension stores, and the
+  boundaries worth knowing about.
+- A tagged release workflow that runs the full gate, builds both packages, checks the tag
+  against `package.json`, and drafts the GitHub release with the zips attached.
+- Coverage thresholds over `src/lib`, and tests for the parts that had none: the Tabstack
+  client, the downloads backend, host permissions, `isErrorReply()` and backend lookup.
+- `minimum_chrome_version` on the Chrome package, the counterpart to gecko's
+  `strict_min_version`.
 
 ### Fixed
 
@@ -22,9 +30,33 @@ All notable changes to this extension. Format follows
   empty status box; replies are now checked with `isErrorReply()` and the message shown.
 - Removed dead pre-`try` assignments in the three API error mappers, and a synchronous
   `setState` inside an effect on the options page.
+- Non-JSON error bodies from the Tabstack API were dropped: the fallback read the body a
+  second time, after the failed JSON parse had already consumed it. A 502 said only
+  "request failed (502)".
+- An import gave up on an item the moment a request failed to reach the API at all. Network
+  failures now carry status 0 and are retried with the same backoff as a 429, while a 422 —
+  a page the API cannot fetch — no longer burns three extra retries on it.
+- A destination that rejected every write only ever failed one item at a time, each after
+  paying for a full extraction. GitHub and Obsidian failures now carry their HTTP status,
+  401/402/404 stops the run, and five failures in a row stops it regardless of status.
+- The Obsidian backend overwrote an existing note once 50 candidate filenames were taken;
+  it now refuses, like the GitHub backend already did.
+- A filename template of `../../{slug}` could write outside the destination folder. Token
+  values were already sanitised; the template's own dot segments are now dropped too.
+- Store screenshots were 2560×1600 retina captures, which the Chrome Web Store rejects;
+  they are now the 1280×800 it accepts.
 
 ### Changed
 
+- Pruning the saved-URL index no longer scans all of `storage.local` on every single save —
+  it sweeps once per 250 saves. A 5,000-bookmark import did 5,000 full-index scans.
+- The one-time migration from the recent-saves list is recorded with a flag instead of
+  inferred from an empty index, which had it scanning all of storage on every background
+  wakeup, forever.
+- `browser_specific_settings` is left out of the Chrome package rather than shipped as a key
+  its validator does not recognise.
+- CI uploads the Chrome package alongside the Firefox one, runs with a read-only token, and
+  gates on coverage.
 - TypeScript pinned to 6.x, because `typescript-eslint` does not support 7 yet.
 - `web-ext` is a pinned devDependency instead of `pnpm dlx web-ext@latest` in CI.
 

@@ -67,6 +67,19 @@ describe('obsidianBackend.save', () => {
     expect(result.location).toBe('Bookmarks/my note-1.md');
   });
 
+  it('refuses rather than overwriting when every candidate name is taken', async () => {
+    // PUT replaces a note outright, so running out of suffixes must fail loudly
+    // instead of clobbering something the user wrote.
+    fetchMock.mockResolvedValue(new Response('{}', { status: 200 }));
+
+    await expect(obsidianBackend.save(payload, settings)).rejects.toThrow(
+      /Could not find a free filename/,
+    );
+    expect(
+      fetchMock.mock.calls.every(([, init]) => (init?.method ?? 'GET') !== 'PUT'),
+    ).toBe(true);
+  });
+
   it('explains a rejected API key', async () => {
     fetchMock.mockResolvedValueOnce(new Response('{}', { status: 401 }));
     await expect(obsidianBackend.save(payload, settings)).rejects.toThrow(

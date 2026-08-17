@@ -16,12 +16,15 @@ please read it before changing anything in `src/lib/`. It is short.
 ## Before opening a pull request
 
 ```bash
-pnpm compile      # types
-pnpm lint         # eslint
-pnpm format       # prettier --write
-pnpm test         # vitest
+pnpm compile        # types
+pnpm lint           # eslint
+pnpm format         # prettier --write
+pnpm test:coverage  # vitest, with thresholds over src/lib
 pnpm build:firefox && pnpm build
 ```
+
+Found something exploitable rather than merely broken? Do not open a pull request — see
+[SECURITY.md](SECURITY.md).
 
 CI runs all of the above plus `web-ext lint`. If your change touches the manifest,
 permissions, the UI, or anything a store reviewer would read, also update

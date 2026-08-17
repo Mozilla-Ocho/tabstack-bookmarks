@@ -1,0 +1,73 @@
+name: Release
+
+# Tag a version and this builds the exact packages that get uploaded to the two
+# stores, so the zips are never whatever happened to be in someone's .output.
+on:
+  push:
+    tags: ['v*']
+  # Same job without the tag, for rehearsing it.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # WXT names the zips after package.json's version, and that version becomes
+      # the manifest version the stores enforce. A tag that disagrees with it means
+      # uploading something labelled differently from what was tagged — so check
+      # before spending five minutes building it.
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          packaged="$(node -p "require('./package.json').version")"
+          if [ "$tagged" != "$packaged" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $packaged" >&2
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The full gate again. A tag can point at a commit that never saw CI.
+      - run: pnpm compile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
+
+      - run: pnpm build:firefox
+      - run: pnpm build
+      - run: pnpm exec web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors=false
+
+      - run: pnpm zip:firefox
+      - run: pnpm zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: .output/*.zip
+          if-no-files-found: error
+
+      # Draft, not published: the store listings and the changelog entry still
+      # want a human before anyone is told the release exists.
+      - name: Draft the GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --draft \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See CHANGELOG.md. Upload the Firefox zip plus its sources zip to AMO, and the Chrome zip to the Web Store; answers for both forms are in store/LISTING.md." \
+            .output/*.zip

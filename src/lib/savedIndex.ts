@@ -21,6 +21,20 @@ const PREFIX = 'saved:';
 /** Trimmed to the oldest entries past this point. */
 export const MAX_ENTRIES = 50_000;
 
+/**
+ * Counter and flag keys, deliberately outside `PREFIX` so `isEntryKey` and
+ * `clearSaved` ignore them.
+ */
+const WRITES_KEY = 'savedIndexWrites';
+const MIGRATED_KEY = 'savedIndexMigrated';
+
+/**
+ * Saves between prune sweeps. Pruning reads the entire storage area, so doing
+ * it on every save turns a 5,000-bookmark import into 5,000 full-index scans.
+ * Overshooting MAX_ENTRIES by this much costs nothing.
+ */
+export const PRUNE_INTERVAL = 250;
+
 export interface SavedEntry {
   url: string;
   /** Path inside the backend's folder. */
@@ -94,7 +108,10 @@ export async function countSaved(): Promise<number> {
 
 export async function clearSaved(): Promise<void> {
   const stored = await browser.storage.local.get(null);
-  await browser.storage.local.remove(Object.keys(stored).filter(isEntryKey));
+  await browser.storage.local.remove([
+    ...Object.keys(stored).filter(isEntryKey),
+    WRITES_KEY,
+  ]);
 }
 
 /** Drops the oldest entries once the index grows past `max`. */
@@ -107,11 +124,43 @@ export async function pruneSaved(max = MAX_ENTRIES): Promise<number> {
 }
 
 /**
+ * Prunes every `interval` saves rather than on every one. A single-key counter
+ * read is trivial; the full-index scan `pruneSaved` needs is not.
+ */
+export async function maybePruneSaved(
+  max = MAX_ENTRIES,
+  interval = PRUNE_INTERVAL,
+): Promise<number> {
+  const stored = await browser.storage.local.get(WRITES_KEY);
+  const writes = ((stored[WRITES_KEY] as number | undefined) ?? 0) + 1;
+
+  if (writes < interval) {
+    await browser.storage.local.set({ [WRITES_KEY]: writes });
+    return 0;
+  }
+
+  await browser.storage.local.set({ [WRITES_KEY]: 0 });
+  return pruneSaved(max);
+}
+
+/**
  * Seeds the index from the recent-saves list, for profiles that saved things
- * before the index existed. Cheap no-op once anything is indexed.
+ * before the index existed.
+ *
+ * Runs at most once per profile, recorded by a flag rather than by "is the index
+ * empty?". The background is an event page: it wakes for every save, and
+ * `countSaved()` reads the whole storage area, so an empty-index check would pay
+ * for a one-time migration on every wakeup forever. The flag also survives a
+ * deliberate "clear saved index", which must not be undone by a re-migration.
  */
 export async function migrateFromRecent(recent: SaveRecord[]): Promise<number> {
-  if ((await countSaved()) > 0) return 0;
+  const stored = await browser.storage.local.get(MIGRATED_KEY);
+  if (stored[MIGRATED_KEY]) return 0;
+
+  const empty = (await countSaved()) === 0;
+  await browser.storage.local.set({ [MIGRATED_KEY]: true });
+  if (!empty) return 0;
+
   const done = recent.filter((record) => record.status === 'done' && record.path);
   for (const record of done) await markSaved(record);
   return done.length;

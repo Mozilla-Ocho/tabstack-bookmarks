@@ -28,6 +28,7 @@ pnpm compile          # tsc --noEmit
 pnpm lint             # eslint; type-aware, so it needs TypeScript 6.x
 pnpm format           # prettier --write .
 pnpm test             # vitest run
+pnpm test:coverage    # same, with thresholds over src/lib (CI runs this one)
 pnpm build:firefox    # .output/firefox-mv3
 pnpm build            # .output/chrome-mv3
 pnpm dev:firefox      # HMR (see the caveat below)
@@ -62,17 +63,39 @@ remembered 30 URLs and re-saved (re-charged for) the rest. `src/lib/saveStore.te
 guards this — if that test starts looking inconvenient, the change is wrong.
 
 **Only `src/lib/tabstack.ts` talks to `api.tabstack.ai`,** and failures come back as
-`TabstackError` carrying the HTTP status. `importQueue` branches on `errorStatus`: 429
-means back off and retry, 401/402 means stop the entire run. Swallowing the status
-silently turns "out of credits" into 500 failed items.
+`TabstackError` carrying the HTTP status. Swallowing the status silently turns "out of
+credits" into 500 failed items.
+
+**Every HTTP failure carries a status, whoever it came from.** `HttpError` in
+`src/lib/httpError.ts` is the base; `TabstackError` extends it, and the GitHub and Obsidian
+backends throw it too. A failure with no response at all gets `NETWORK_STATUS` (0), not
+`undefined`. `runSave()` copies the status onto `record.errorStatus`, and `importQueue`
+decides from it via `isRetryableStatus()` (0/403/429/5xx) and `isFatalStatus()`
+(401/402/404). Throwing a bare `Error` from a backend drops it back into "retry nothing,
+stop for nothing" — which is how a wrong GitHub token used to pay for thousands of
+extractions before failing to store every one of them. On top of the statuses,
+`MAX_CONSECUTIVE_FAILURES` stops a run after five failures in a row, which is what catches
+the failures no status describes.
 
 **A failed summary must never lose the markdown.** `/generate/json` runs in parallel with
 extraction and its rejection is caught into `record.summaryError`; the save still
 completes.
 
 **Filename tokens cannot introduce path separators.** `renderFilename()` sanitises token
-values while leaving template slashes as folders. A page titled `../../etc` must not
+values while leaving template slashes as folders, and drops `.` and `..` segments from the
+template itself. Neither a page titled `../../etc` nor a template of `../../{slug}` may
 escape the destination folder.
+
+**Never overwrite a file the user did not ask you to overwrite.** Both the GitHub and
+Obsidian backends look for a free `-1`, `-2`, … name and throw once they run out, rather
+than falling through to a write. Obsidian's save is a `PUT`, which replaces a note outright,
+so "give up after 50" has to mean give up.
+
+**Nothing that scans all of storage may run per save.** `storage.local.get(null)` costs the
+whole index — 50,000 entries at the cap. `rememberSave()` calls `maybePruneSaved()`, which
+sweeps once per `PRUNE_INTERVAL` saves off a single-key counter, and `migrateFromRecent()`
+is gated by a stored flag rather than by "is the index empty?" — the background wakes for
+every save, so an empty-index check pays for a one-time migration forever.
 
 **Documents carry exactly one frontmatter block.** `composeDocument()` strips whatever the
 extraction produced before prepending ours; the horizontal-rule case is tested.
@@ -109,12 +132,14 @@ supports it.
 
 ## Storage keys
 
-| Key           | Contents                                          |
-| ------------- | ------------------------------------------------- |
-| `settings`    | The one settings object                           |
-| `recentSaves` | Last 30 `SaveRecord`s, for the UI only            |
-| `saved:<url>` | Durable index entry, one key per URL, O(1) writes |
-| `importJob`   | The running/most recent import job                |
+| Key                  | Contents                                          |
+| -------------------- | ------------------------------------------------- |
+| `settings`           | The one settings object                           |
+| `recentSaves`        | Last 30 `SaveRecord`s, for the UI only            |
+| `saved:<url>`        | Durable index entry, one key per URL, O(1) writes |
+| `savedIndexWrites`   | Saves since the last prune sweep                  |
+| `savedIndexMigrated` | Set once the pre-index migration has run          |
+| `importJob`          | The running/most recent import job                |
 
 The `saved:` prefix is sharded on purpose: a single map would be rewritten on every save.
 Anything iterating all keys must filter by prefix and ignore the rest.

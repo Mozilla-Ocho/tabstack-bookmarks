@@ -74,7 +74,10 @@ export function renderFilename(template: string, vars: FilenameVars): string {
   const path = rendered
     .split('/')
     .map((segment) => segment.trim())
-    .filter(Boolean)
+    // Token values cannot contain a separator, but the template is free text, so
+    // `../../{slug}` is something a user can type. Dropping dot segments keeps a
+    // template from writing outside the destination folder.
+    .filter((segment) => segment !== '' && segment !== '.' && segment !== '..')
     .join('/');
 
   return path.endsWith('.md') ? path : `${path}.md`;

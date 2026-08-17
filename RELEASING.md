@@ -5,7 +5,7 @@
 ```bash
 pnpm install
 pnpm compile
-pnpm test
+pnpm test:coverage
 pnpm build:firefox && pnpm build
 pnpm dlx web-ext lint -s .output/firefox-mv3   # 0 errors; 2 React warnings are expected
 ```
@@ -34,6 +34,23 @@ Two paths only a human can check, both on a **fresh profile**:
 1. Set the new version in `package.json` (WXT reads it for the manifest).
 2. Move `CHANGELOG.md`'s `[Unreleased]` entries under the new version with today's date.
 3. Commit, then tag: `git tag -a v0.1.0 -m "v0.1.0"`.
+4. `git push --follow-tags`.
+
+Pushing the tag runs `.github/workflows/release.yml`, which repeats the whole gate, builds
+both packages, refuses the tag if it disagrees with `package.json`, and opens a **draft**
+GitHub release with the zips attached. Download those zips for the store uploads rather than
+whatever is in your `.output/` — they are the ones built from the tagged commit. The steps
+below stay accurate if you would rather build locally.
+
+## Screenshots
+
+Both stores take the four PNGs in `store/screenshots/`. The Chrome Web Store accepts
+**1280×800 or 640×400 and nothing else**, so a retina capture has to be downscaled before
+upload — a 2× screenshot of a 1280×800 window is a 2560×1600 file and gets rejected:
+
+```bash
+sips -z 800 1280 store/screenshots/*.png   # macOS; in place
+```
 
 ## Firefox (AMO)
 

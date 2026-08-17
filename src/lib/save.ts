@@ -3,11 +3,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { getBackend } from './backends';
+import { HttpError } from './httpError';
 import { buildFrontmatter, composeDocument, renderFilename } from './markdown';
 import type { SaveRecord, SaveRequest } from './messages';
 import { hasOrigin } from './permissions';
 import { backendOrigin, configErrors, getSettings } from './settings';
-import { extractMarkdown, generateSummary, TabstackError } from './tabstack';
+import { extractMarkdown, generateSummary } from './tabstack';
 
 export function isSaveableUrl(url: string | undefined): boolean {
   if (!url) return false;
@@ -152,7 +153,10 @@ export async function runSave(
     return advance({
       status: 'error',
       error: error instanceof Error ? error.message : String(error),
-      errorStatus: error instanceof TabstackError ? error.status : undefined,
+      // Any HTTP source, not just Tabstack: the import queue needs a GitHub or
+      // Obsidian status too, or a bad destination token fails every item one at
+      // a time — each paying for a full extraction first.
+      errorStatus: error instanceof HttpError ? error.status : undefined,
     });
   }
 }

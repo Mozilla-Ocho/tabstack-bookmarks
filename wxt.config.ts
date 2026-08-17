@@ -11,7 +11,7 @@ export default defineConfig({
   // Firefox 128+ supports MV3; keeping one manifest version keeps the
   // `browser.action` / service-worker-vs-event-page differences to a minimum.
   manifestVersion: 3,
-  manifest: {
+  manifest: ({ browser }) => ({
     name: 'Tabstack Bookmarks',
     description:
       'Bookmark pages as markdown. Tabstack extracts the page, your storage keeps it.',
@@ -33,6 +33,11 @@ export default defineConfig({
     ],
     // Firefox MV3 treats these as opt-in: the options page asks for them at runtime.
     host_permissions: ['https://api.tabstack.ai/*', 'https://api.github.com/*'],
+    // The Chrome counterpart to gecko's strict_min_version, and only meaningful
+    // there. 116 is the first release with `browser.action` promises and MV3
+    // service workers stable enough for this; with no floor, older Chrome
+    // installs the extension and breaks.
+    ...(browser === 'firefox' ? {} : { minimum_chrome_version: '116' }),
     // The Obsidian destination is user-supplied, but in practice the plugin runs
     // on this machine. Keeping the optional set to loopback rather than "*://*/*"
     // means store reviewers (and users) are not asked to trust an all-sites
@@ -50,18 +55,24 @@ export default defineConfig({
         description: 'Save the current page to Tabstack',
       },
     },
-    browser_specific_settings: {
-      gecko: {
-        id: 'bookmarks@tabstack.ai',
-        // 142 is the first release that understands data_collection_permissions.
-        strict_min_version: '142.0',
-        // AMO requires a data-consent declaration: page URLs and page content
-        // go to the Tabstack API, and the markdown goes to the user's store.
-        data_collection_permissions: {
-          required: ['websiteContent'],
-        },
-      },
-    },
+    // Firefox-only, and left out of the Chrome package rather than shipped as a
+    // key the Web Store's validator does not recognise.
+    ...(browser === 'firefox'
+      ? {
+          browser_specific_settings: {
+            gecko: {
+              id: 'bookmarks@tabstack.ai',
+              // 142 is the first release that understands data_collection_permissions.
+              strict_min_version: '142.0',
+              // AMO requires a data-consent declaration: page URLs and page content
+              // go to the Tabstack API, and the markdown goes to the user's store.
+              data_collection_permissions: {
+                required: ['websiteContent'],
+              },
+            },
+          },
+        }
+      : {}),
     action: {
       default_title: 'Save to Tabstack',
       // Pinned explicitly so the toolbar uses the pixel-snapped small sizes
@@ -72,5 +83,5 @@ export default defineConfig({
         48: 'icon/48.png',
       },
     },
-  },
+  }),
 });

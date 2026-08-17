@@ -13,6 +13,7 @@ import {
   isSaved,
   listSaved,
   markSaved,
+  maybePruneSaved,
   migrateFromRecent,
   pruneSaved,
   savedUrls,
@@ -138,6 +139,36 @@ describe('pruneSaved', () => {
   });
 });
 
+describe('maybePruneSaved', () => {
+  it('leaves the index alone until the interval comes round', async () => {
+    for (let i = 0; i < 5; i++) await markSaved(done(`https://ex.com/${i}`, i));
+
+    expect(await maybePruneSaved(3, 3)).toBe(0);
+    expect(await maybePruneSaved(3, 3)).toBe(0);
+    expect(await countSaved()).toBe(5);
+
+    // Third call: prunes down to the cap.
+    expect(await maybePruneSaved(3, 3)).toBe(2);
+    expect(await countSaved()).toBe(3);
+  });
+
+  it('starts counting again after a sweep', async () => {
+    for (let i = 0; i < 4; i++) await markSaved(done(`https://ex.com/${i}`, i));
+    await maybePruneSaved(2, 1);
+    expect(await countSaved()).toBe(2);
+
+    await markSaved(done('https://ex.com/new', 99));
+    expect(await maybePruneSaved(2, 2)).toBe(0);
+    expect(await maybePruneSaved(2, 2)).toBe(1);
+  });
+
+  it('keeps its counter out of the index', async () => {
+    await maybePruneSaved(10, 5);
+    expect(await countSaved()).toBe(0);
+    expect((await savedUrls()).size).toBe(0);
+  });
+});
+
 describe('migrateFromRecent', () => {
   it('seeds the index from old recent-save records', async () => {
     const seeded = await migrateFromRecent([
@@ -152,5 +183,24 @@ describe('migrateFromRecent', () => {
     await markSaved(done('https://ex.com/a'));
     expect(await migrateFromRecent([done('https://ex.com/b')])).toBe(0);
     expect(await isSaved('https://ex.com/b')).toBe(false);
+  });
+
+  /**
+   * The background is an event page, so this runs on every wakeup. Deciding by
+   * "is the index empty?" meant a full storage scan each time, forever.
+   */
+  it('runs once per profile, even when the index is still empty', async () => {
+    expect(await migrateFromRecent([])).toBe(0);
+    expect(await migrateFromRecent([done('https://ex.com/a')])).toBe(0);
+    expect(await isSaved('https://ex.com/a')).toBe(false);
+  });
+
+  it('does not resurrect entries after the index is deliberately cleared', async () => {
+    const recent = [done('https://ex.com/a')];
+    expect(await migrateFromRecent(recent)).toBe(1);
+
+    await clearSaved();
+    expect(await migrateFromRecent(recent)).toBe(0);
+    expect(await countSaved()).toBe(0);
   });
 });

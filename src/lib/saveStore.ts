@@ -4,7 +4,7 @@
 
 import { browser } from '#imports';
 import type { SaveRecord } from './messages';
-import { forgetSaved, getSaved, markSaved, pruneSaved } from './savedIndex';
+import { forgetSaved, getSaved, markSaved, maybePruneSaved } from './savedIndex';
 
 const KEY = 'recentSaves';
 /** UI history only. The durable "already saved" set lives in savedIndex.ts. */
@@ -37,7 +37,9 @@ export async function rememberSave(record: SaveRecord): Promise<void> {
   await putRecord(record);
   if (record.status !== 'done') return;
   await markSaved(record);
-  await pruneSaved();
+  // Gated, not unconditional: pruning scans the whole storage area, and this
+  // runs once per save — including every item of a several-thousand-page import.
+  await maybePruneSaved();
 }
 
 export async function deleteRecord(url: string): Promise<void> {

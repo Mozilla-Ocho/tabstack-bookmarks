@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { HttpError, NETWORK_STATUS } from '../httpError';
 import { joinPath } from '../markdown';
 import type { ObsidianSettings, Settings } from '../settings';
 import type { SavePayload, SaveResult, StorageBackend } from './types';
@@ -18,7 +19,7 @@ function vaultUrl(cfg: ObsidianSettings, path: string): string {
 
 function reachError(error: unknown, cfg: ObsidianSettings): Error {
   const https = base(cfg).startsWith('https:');
-  return new Error(
+  return new HttpError(
     `Could not reach Obsidian at ${base(cfg)}. Make sure Obsidian is running with the ` +
       `Local REST API plugin enabled.${
         https
@@ -26,20 +27,25 @@ function reachError(error: unknown, cfg: ObsidianSettings): Error {
           : ''
       }` +
       ` (${error instanceof Error ? error.message : String(error)})`,
+    NETWORK_STATUS,
   );
 }
 
-async function statusError(res: Response): Promise<Error> {
+async function statusError(res: Response): Promise<HttpError> {
   const detail = await res
     .json()
     .then((json) => (json as { message?: string }).message ?? '')
     .catch(() => '');
   if (res.status === 401) {
-    return new Error(
+    return new HttpError(
       'Obsidian rejected the API key (401). Copy it from the plugin settings.',
+      res.status,
     );
   }
-  return new Error(`Obsidian write failed (${res.status}). ${detail}`.trim());
+  return new HttpError(
+    `Obsidian write failed (${res.status}). ${detail}`.trim(),
+    res.status,
+  );
 }
 
 async function exists(cfg: ObsidianSettings, path: string): Promise<boolean> {
@@ -49,6 +55,23 @@ async function exists(cfg: ObsidianSettings, path: string): Promise<boolean> {
   if (res.status === 404) return false;
   if (res.status === 401) throw await statusError(res);
   return res.ok;
+}
+
+/**
+ * Appends -1, -2, ... until the path is free, and refuses rather than running
+ * out of candidates: the save below is a PUT, which replaces a note outright, so
+ * giving up beats silently overwriting one the user wrote.
+ */
+async function freePath(cfg: ObsidianSettings, path: string): Promise<string> {
+  const dot = path.lastIndexOf('.');
+  const stem = dot > 0 ? path.slice(0, dot) : path;
+  const ext = dot > 0 ? path.slice(dot) : '';
+
+  for (let n = 0; n < 50; n++) {
+    const candidate = n === 0 ? path : `${stem}-${n}${ext}`;
+    if (!(await exists(cfg, candidate))) return candidate;
+  }
+  throw new Error(`Could not find a free filename near ${path}.`);
 }
 
 export const obsidianBackend: StorageBackend = {
@@ -61,14 +84,7 @@ export const obsidianBackend: StorageBackend = {
     let path = joinPath(cfg.folder, payload.path);
 
     try {
-      if (!payload.overwrite) {
-        const dot = path.lastIndexOf('.');
-        const stem = dot > 0 ? path.slice(0, dot) : path;
-        const ext = dot > 0 ? path.slice(dot) : '';
-        for (let n = 1; n < 50 && (await exists(cfg, path)); n++) {
-          path = `${stem}-${n}${ext}`;
-        }
-      }
+      if (!payload.overwrite) path = await freePath(cfg, path);
 
       // PUT replaces the note at this path; the plugin creates folders as needed.
       const res = await fetch(vaultUrl(cfg, path), {

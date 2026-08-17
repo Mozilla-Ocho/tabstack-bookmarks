@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Nothing here writes to the repository; the release workflow asks for more.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -27,7 +31,7 @@ jobs:
 
       - run: pnpm format:check
 
-      - run: pnpm test
+      - run: pnpm test:coverage
 
       - run: pnpm build:firefox
 
@@ -38,12 +42,15 @@ jobs:
       - run: pnpm exec web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors=false
 
       - name: Package
-        run: pnpm zip:firefox
+        run: pnpm zip:firefox && pnpm zip
 
+      # Both stores' uploads, so a PR can be installed and walked through before
+      # it is merged, not only after a release is tagged.
       - uses: actions/upload-artifact@v4
         with:
-          name: firefox-package
+          name: packages
           path: |
             .output/*-firefox.zip
             .output/*-sources.zip
+            .output/*-chrome.zip
           if-no-files-found: error

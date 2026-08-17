@@ -189,6 +189,119 @@ describe('processJob', () => {
     expect(job!.running).toBe(false);
   });
 
+  it('retries an item whose request never reached the API', async () => {
+    let attempts = 0;
+    save.mockImplementation(async (request: SaveRequest) => {
+      if (request.url !== 'https://ex.com/a') return record({ url: request.url });
+      attempts += 1;
+      // Status 0: offline, DNS, dropped connection. A blip mid-run used to fail
+      // the item permanently.
+      return attempts < 2
+        ? record({
+            url: request.url,
+            status: 'error',
+            error: 'Could not reach api.tabstack.ai.',
+            errorStatus: 0,
+          })
+        : record({ url: request.url });
+    });
+
+    await startImport(OPTIONS);
+    const job = await drain();
+
+    expect(attempts).toBe(2);
+    expect(job).toMatchObject({ saved: 3, failures: [] });
+  });
+
+  it('does not retry a page the API refuses to fetch', async () => {
+    save.mockResolvedValue(
+      record({
+        status: 'error',
+        error: 'Tabstack could not fetch this URL (422).',
+        errorStatus: 422,
+      }),
+    );
+
+    await startImport({ ...OPTIONS, limit: 1 });
+    const job = await drain();
+
+    // One attempt, not four: a 422 is about the page, and retrying costs credits.
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(job!.failures).toHaveLength(1);
+  });
+
+  it('stops the run when the destination rejects the token', async () => {
+    // GitHub 401, not Tabstack. Each attempt pays for an extraction before it
+    // ever tries to store anything, so continuing would bill for every item.
+    save.mockResolvedValue(
+      record({
+        status: 'error',
+        error: 'GitHub rejected the token (401).',
+        errorStatus: 401,
+      }),
+    );
+
+    await startImport(OPTIONS);
+    const job = await drain();
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(job).toMatchObject({ running: false, index: 1 });
+    expect(job!.abortReason).toMatch(/GitHub rejected the token/);
+  });
+
+  it('stops the run after five failures in a row', async () => {
+    collect.mockResolvedValue(
+      Array.from({ length: 20 }, (_, i) => ({
+        id: `${i}`,
+        url: `https://ex.com/${i}`,
+        title: `Page ${i}`,
+        folders: [],
+      })),
+    );
+    // No status at all — a missing API key, a broken backend. Nothing here says
+    // "stop", so only the streak breaker can.
+    save.mockImplementation(async (request: SaveRequest) =>
+      record({
+        url: request.url,
+        status: 'error',
+        error: 'Tabstack API key is missing.',
+      }),
+    );
+
+    await startImport(OPTIONS);
+    const job = await drain();
+
+    expect(save).toHaveBeenCalledTimes(5);
+    expect(job).toMatchObject({ running: false, index: 5, saved: 0 });
+    expect(job!.abortReason).toMatch(/5 failures in a row/);
+    expect(job!.abortReason).toMatch(/API key is missing/);
+  });
+
+  it('forgives a failure once something saves again', async () => {
+    let n = 0;
+    // Fail, fail, succeed, fail, fail — never five in a row, so it runs through.
+    save.mockImplementation(async (request: SaveRequest) => {
+      n += 1;
+      return n === 3
+        ? record({ url: request.url })
+        : record({ url: request.url, status: 'error', error: 'flaky' });
+    });
+    collect.mockResolvedValue(
+      Array.from({ length: 5 }, (_, i) => ({
+        id: `${i}`,
+        url: `https://ex.com/${i}`,
+        title: `Page ${i}`,
+        folders: [],
+      })),
+    );
+
+    await startImport(OPTIONS);
+    const job = await drain();
+
+    expect(job).toMatchObject({ index: 5, saved: 1, consecutiveFailures: 2 });
+    expect(job!.abortReason).toBeUndefined();
+  });
+
   it('aborts the whole run when credits run out', async () => {
     save.mockResolvedValue(
       record({ status: 'error', error: 'out of credits (402)', errorStatus: 402 }),

@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { HttpError, NETWORK_STATUS } from './httpError';
 import type { ContentScope, Effort } from './settings';
 
 export const TABSTACK_API = 'https://api.tabstack.ai/v1';
@@ -48,51 +49,78 @@ function statusMessage(status: number, body: string): string {
   }
 }
 
+/** Longer than this and the message stops fitting in a notification. */
+const MAX_DETAIL = 300;
+
 /** Turns a failed response into an Error carrying the API's own message. */
 async function apiError(res: Response): Promise<TabstackError> {
-  let detail: string;
+  // Read the body once, as text. Trying res.json() first and falling back to
+  // res.text() cannot work: the failed parse has already consumed the stream, so
+  // every non-JSON error arrived with its body silently dropped.
+  const body = (await res.text().catch(() => '')).trim();
+
+  let detail = body;
   try {
-    const json = (await res.json()) as { error?: string };
-    detail = json.error ?? '';
+    detail = (JSON.parse(body) as { error?: string }).error?.trim() ?? '';
   } catch {
-    // Not JSON — the body text is the next best thing.
-    detail = await res.text().catch(() => '');
+    // Not JSON — the raw text is the next best thing.
   }
-  return new TabstackError(statusMessage(res.status, detail), res.status);
+
+  return new TabstackError(
+    statusMessage(res.status, detail.slice(0, MAX_DETAIL)),
+    res.status,
+  );
 }
 
 /** Carries the HTTP status so callers can back off or abort on 429/402. */
-export class TabstackError extends Error {
-  status: number;
-
+export class TabstackError extends HttpError {
   constructor(message: string, status: number) {
-    super(message);
+    super(message, status);
     this.name = 'TabstackError';
-    this.status = status;
   }
+}
+
+/**
+ * One POST, with the two failure modes callers care about turned into a
+ * `TabstackError`: an error response, and no response at all.
+ */
+async function post(path: string, apiKey: string, body: unknown): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(`${TABSTACK_API}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    // fetch only rejects when the request never got a response. Unattended
+    // imports must be able to retry this rather than record a hard failure.
+    throw new TabstackError(
+      `Could not reach api.tabstack.ai. Check your connection, and that the extension ` +
+        `has permission to reach it. (${error instanceof Error ? error.message : String(error)})`,
+      NETWORK_STATUS,
+    );
+  }
+
+  if (!res.ok) throw await apiError(res);
+  return res;
 }
 
 /** POST /extract/markdown — fetches the URL and returns clean markdown. */
 export async function extractMarkdown(
   opts: ExtractOptions,
 ): Promise<ExtractMarkdownResponse> {
-  const res = await fetch(`${TABSTACK_API}/extract/markdown`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${opts.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url: opts.url,
-      // Ask for metadata separately so we can build our own frontmatter.
-      metadata: true,
-      content: opts.contentScope ?? 'main',
-      effort: opts.effort ?? 'standard',
-      nocache: opts.nocache ?? false,
-    }),
+  const res = await post('/extract/markdown', opts.apiKey, {
+    url: opts.url,
+    // Ask for metadata separately so we can build our own frontmatter.
+    metadata: true,
+    content: opts.contentScope ?? 'main',
+    effort: opts.effort ?? 'standard',
+    nocache: opts.nocache ?? false,
   });
-
-  if (!res.ok) throw await apiError(res);
 
   return (await res.json()) as ExtractMarkdownResponse;
 }
@@ -143,22 +171,13 @@ export interface SummaryOptions {
 
 /** POST /generate/json — AI summary, key points and suggested tags for a page. */
 export async function generateSummary(opts: SummaryOptions): Promise<PageSummary> {
-  const res = await fetch(`${TABSTACK_API}/generate/json`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${opts.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      url: opts.url,
-      json_schema: SUMMARY_SCHEMA,
-      instructions: SUMMARY_INSTRUCTIONS,
-      effort: opts.effort ?? 'standard',
-      nocache: opts.nocache ?? false,
-    }),
+  const res = await post('/generate/json', opts.apiKey, {
+    url: opts.url,
+    json_schema: SUMMARY_SCHEMA,
+    instructions: SUMMARY_INSTRUCTIONS,
+    effort: opts.effort ?? 'standard',
+    nocache: opts.nocache ?? false,
   });
-
-  if (!res.ok) throw await apiError(res);
 
   const json = (await res.json()) as Partial<PageSummary>;
   return {

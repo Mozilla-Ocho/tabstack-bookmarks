@@ -134,6 +134,9 @@ blobs beyond standard bundler output of React and the extension's own source.
 | `03-import.png`       | Bookmark import, mid-run                                 |
 | `04-output.png`       | The markdown a save produces, frontmatter and key points |
 
-Captured at 1280×800 from a real Chrome running the production build, with real API
-responses — no mockups. Regenerate them after UI changes rather than shipping stale
-images.
+Captured from a real Chrome running the production build, with real API responses — no
+mockups. Regenerate them after UI changes rather than shipping stale images.
+
+They must be **exactly 1280×800** (or 640×400) or the Chrome Web Store rejects them. A
+retina capture of a 1280×800 window is a 2560×1600 file, so downscale before uploading:
+`sips -z 800 1280 store/screenshots/*.png`.

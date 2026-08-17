@@ -5,6 +5,7 @@
 import { browser } from '#imports';
 import type { BookmarkItem } from './bookmarks';
 import { collectBookmarks } from './bookmarks';
+import { isFatalStatus, isRetryableStatus } from './httpError';
 import type { SaveRecord } from './messages';
 import { runSave } from './save';
 import { rememberSave } from './saveStore';
@@ -43,6 +44,11 @@ export interface ImportJob {
   saved: number;
   skipped: number;
   failures: ImportFailure[];
+  /**
+   * Failures since the last success. Optional because jobs stored by earlier
+   * versions do not have it; treat a missing value as 0.
+   */
+  consecutiveFailures?: number;
   options: ImportOptions;
   startedAt: number;
   updatedAt: number;
@@ -61,6 +67,13 @@ export const DEFAULT_IMPORT_OPTIONS: ImportOptions = {
 
 const JOB_KEY = 'importJob';
 const MAX_RETRIES = 3;
+/**
+ * Stop the run after this many failures in a row. The status checks below catch
+ * the failures that announce themselves; this catches the rest — a destination
+ * that has gone away, a config error that carries no status at all — before an
+ * unattended run pays Tabstack to extract thousands of pages it cannot store.
+ */
+const MAX_CONSECUTIVE_FAILURES = 5;
 
 export async function getJob(): Promise<ImportJob | undefined> {
   const stored = await browser.storage.local.get(JOB_KEY);
@@ -115,6 +128,7 @@ export async function startImport(options: ImportOptions): Promise<ImportJob> {
     saved: 0,
     skipped,
     failures: [],
+    consecutiveFailures: 0,
     options,
     startedAt: Date.now(),
     updatedAt: Date.now(),
@@ -133,6 +147,24 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 /** Retry-After style backoff for 429s: 5s, 15s, 45s. */
 function backoffMs(attempt: number): number {
   return 5_000 * 3 ** attempt;
+}
+
+/** Why the whole run should stop, or undefined to carry on with the next item. */
+function abortReasonFor(
+  record: SaveRecord | undefined,
+  consecutiveFailures: number,
+): string | undefined {
+  // A rejected key, an empty account or a missing repo fails every remaining
+  // item too, and each attempt is charged for before storage is even tried.
+  if (isFatalStatus(record?.errorStatus)) {
+    return record?.error ?? 'Unrecoverable error.';
+  }
+  if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+    return `Stopped after ${consecutiveFailures} failures in a row. Last error: ${
+      record?.error ?? 'unknown'
+    }`;
+  }
+  return undefined;
 }
 
 let processing = false;
@@ -178,7 +210,11 @@ export async function processJob(
         );
         await rememberSave(record);
 
-        if (record.status === 'done' || record.errorStatus !== 429) break;
+        if (record.status === 'done') break;
+        // Rate limits, server faults and dropped connections are worth another
+        // go; a rejected token or an unfetchable page is not. Before this, a
+        // single network blip mid-run turned an item into a permanent failure.
+        if (!isRetryableStatus(record.errorStatus)) break;
         if (attempt === MAX_RETRIES) break;
         await sleep(backoffMs(attempt));
       }
@@ -186,10 +222,12 @@ export async function processJob(
       // Merge onto the stored job, not the snapshot from before the save.
       const latest = (await getJob()) ?? job;
       const ok = record?.status === 'done';
+      const consecutiveFailures = ok ? 0 : (latest.consecutiveFailures ?? 0) + 1;
       job = await putJob({
         ...latest,
         index: latest.index + 1,
         saved: latest.saved + (ok ? 1 : 0),
+        consecutiveFailures,
         failures: ok
           ? latest.failures
           : [
@@ -203,12 +241,12 @@ export async function processJob(
       });
       onProgress?.(job);
 
-      // Out of credits or a bad key will fail every remaining item; stop now.
-      if (record?.errorStatus === 402 || record?.errorStatus === 401) {
+      const abortReason = abortReasonFor(record, consecutiveFailures);
+      if (abortReason) {
         job = await putJob({
           ...job,
           running: false,
-          abortReason: record.error,
+          abortReason,
           finishedAt: Date.now(),
         });
         onProgress?.(job);
