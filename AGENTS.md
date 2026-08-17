@@ -239,6 +239,23 @@ credits (402)" is checking the string a user reads, and plural selection is exer
 than stubbed. Do not replace that with a `t()` that echoes its key — it would make every
 message assertion in the suite meaningless.
 
+## Shipping
+
+Three workflows, in order of how much they can break:
+
+- **CI** on every push and PR: the gate, both builds, `web-ext lint`, and both store packages
+  as artifacts.
+- **Release** on a `v*` tag: refuses a tag that disagrees with `package.json` or has no dated
+  `CHANGELOG.md` section, repeats the gate on a clean checkout, and drafts a GitHub release
+  whose notes are that changelog section.
+- **Publish to AMO**, `workflow_dispatch` only: rebuilds the tag and submits it to Mozilla with
+  its sources archive. Its credentials live on the `amo` environment so approval is a setting,
+  and it is deliberately not tied to the tag — a submission enters a review queue that cannot
+  be cancelled halfway.
+
+Nothing publishes on its own. Tagging is safe; the two irreversible steps, publishing the
+draft and submitting to a store, are a person's decision.
+
 ## Storage keys
 
 | Key                | Contents                                          |

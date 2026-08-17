@@ -84,6 +84,35 @@ Produces two files in `.output/`:
 - `tabstack-bookmarks-<version>-firefox.zip` — the package to upload
 - `tabstack-bookmarks-<version>-sources.zip` — required, because the package is bundled
 
+### Submitting from CI
+
+`.github/workflows/publish-amo.yml`, run by hand from the Actions tab: pick the tag and the
+channel. It checks out that tag, rebuilds, lints the package, and submits the build plus the
+sources archive through AMO's API — so what Mozilla receives is demonstrably the tagged
+source, built somewhere with no local state.
+
+Two repository secrets, from <https://addons.mozilla.org/developers/addon/api/key/>:
+
+| Secret           | What it is                               |
+| ---------------- | ---------------------------------------- |
+| `AMO_JWT_ISSUER` | The API key, of the form `user:12345:67` |
+| `AMO_JWT_SECRET` | The API secret shown beside it, once     |
+
+Put them on a repository **environment** called `amo`, not in plain repository secrets, and
+add required reviewers to it. Then "who may ship to users" is a setting rather than "whoever
+can push a workflow file", and the job pauses for approval before the credentials are readable.
+The secret is shown once at creation; a lost one is regenerated, which invalidates the old.
+
+The job submits and stops — `--approval-timeout 0`, because a listed version waits on human
+review and a runner should not sit watching a queue for hours. Track it on the developer hub.
+
+**The first listed submission is still a web form.** A new add-on needs listing metadata AMO
+does not take from this API in a usable way — categories, the summary, the privacy policy URL.
+Do that once at <https://addons.mozilla.org/developers/>, using the copy in
+`store/LISTING.md`; every version after it can go through the workflow.
+
+### Submitting by hand
+
 Upload at <https://addons.mozilla.org/developers/>. Listing copy, permission
 justifications and reviewer notes are in `store/LISTING.md`; the privacy policy URL is
 `PRIVACY.md` in this repository.

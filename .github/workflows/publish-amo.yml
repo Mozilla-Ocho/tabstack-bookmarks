@@ -1,0 +1,99 @@
+name: Publish to AMO
+
+# Deliberately not on a tag. Tagging builds and drafts; this submits to Mozilla,
+# which enters a review queue that cannot be cancelled halfway. Shipping stays a
+# button press by a person who has read the draft.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to submit, e.g. v0.3.0'
+        required: true
+        type: string
+      channel:
+        description: 'listed = public on AMO; unlisted = self-distributed, signed only'
+        required: true
+        default: listed
+        type: choice
+        options: [listed, unlisted]
+
+permissions:
+  contents: read
+
+# Two submissions of the same add-on at once is a way to confuse AMO, not to go
+# faster.
+concurrency:
+  group: amo-submission
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    # Put the credentials behind an environment so "who may ship" is a setting
+    # rather than "whoever can push a workflow file".
+    environment: amo
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+
+      # The zip's name, the manifest version and the tag all have to agree, or a
+      # version gets submitted under a label nobody used.
+      - name: Check the tag matches package.json
+        run: |
+          tagged="${TAG#v}"
+          packaged="$(node -p "require('./package.json').version")"
+          if [ "$tagged" != "$packaged" ]; then
+            echo "Tag $TAG does not match package.json version $packaged" >&2
+            exit 1
+          fi
+        env:
+          TAG: ${{ inputs.tag }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Rebuilt here rather than downloading the release asset: this way what is
+      # submitted is demonstrably the tagged source, built by something with no
+      # local state, and the sources archive AMO requires is produced alongside it.
+      - run: pnpm build:firefox
+      - run: pnpm exec web-ext lint --source-dir .output/firefox-mv3 --warnings-as-errors=false
+      - run: pnpm zip:firefox
+
+      # AMO requires human-readable sources for a bundled package, and the API
+      # takes them in the same call.
+      - name: Submit for review
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          sources="$(ls .output/*-sources.zip)"
+          echo "Submitting $(node -p "require('./package.json').version") ($CHANNEL) with $sources"
+
+          # --approval-timeout 0: a listed submission waits on human review, and a
+          # job holding a runner for hours to watch a queue is not a build.
+          pnpm exec web-ext sign \
+            --source-dir .output/firefox-mv3 \
+            --artifacts-dir .output/amo \
+            --channel "$CHANNEL" \
+            --api-key "$AMO_JWT_ISSUER" \
+            --api-secret "$AMO_JWT_SECRET" \
+            --upload-source-code "$sources" \
+            --approval-timeout 0
+
+      # An unlisted submission comes back signed; a listed one does not, so this is
+      # allowed to find nothing.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: amo-signed
+          path: .output/amo/*
+          include-hidden-files: true
+          if-no-files-found: ignore
