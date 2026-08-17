@@ -5,8 +5,9 @@
 import { Fragment, useEffect, useState } from 'react';
 import { browser } from '#imports';
 import { i18n } from '#i18n';
+import { backendLabel } from '@/src/ui/backendLabels';
 import { rich, slots } from '@/src/ui/rich';
-import { BACKENDS, BACKEND_ORDER } from '@/src/lib/backends';
+import { BACKEND_ORDER } from '@/src/lib/backends';
 import { verifyGitHub } from '@/src/lib/backends/github';
 import { verifyObsidian } from '@/src/lib/backends/obsidian';
 import { parseTags, renderFilename } from '@/src/lib/markdown';
@@ -294,7 +295,7 @@ export function App() {
           >
             {BACKEND_ORDER.map((id) => (
               <option key={id} value={id}>
-                {BACKENDS[id].label}
+                {backendLabel(id)}
               </option>
             ))}
           </select>

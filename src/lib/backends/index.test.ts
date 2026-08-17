@@ -24,10 +24,11 @@ describe('getBackend', () => {
     );
   });
 
-  it('gives every backend a label for the options page', () => {
-    for (const backend of Object.values(BACKENDS)) {
-      expect(backend.label.length).toBeGreaterThan(0);
-      expect(backend.shortLabel.length).toBeGreaterThan(0);
+  it('keys every backend by its own id', () => {
+    // Display names are not here: they are strings, so they live in the message
+    // catalogue and are resolved by src/ui/backendLabels.ts.
+    for (const [id, backend] of Object.entries(BACKENDS)) {
+      expect(backend.id).toBe(id);
     }
   });
 });

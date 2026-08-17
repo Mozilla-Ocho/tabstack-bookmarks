@@ -35,8 +35,6 @@ function contentUrl(markdown: string): { url: string; revoke: () => void } {
 
 export const downloadBackend: StorageBackend = {
   id: 'download',
-  label: 'Local folder (browser downloads)',
-  shortLabel: 'Downloads',
 
   async save(payload: SavePayload, settings: Settings): Promise<SaveResult> {
     const filename = joinPath(settings.download.folder, payload.path);

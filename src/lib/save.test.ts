@@ -249,8 +249,6 @@ describe('runSave', () => {
   it('surfaces storage errors on the record', async () => {
     vi.mocked(getBackend).mockReturnValueOnce({
       id: 'download',
-      label: 'test',
-      shortLabel: 'Test',
       save: vi.fn(async () => {
         throw new Error('Download failed: FILE_ACCESS_DENIED');
       }),

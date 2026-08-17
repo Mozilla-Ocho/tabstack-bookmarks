@@ -24,12 +24,10 @@ export interface SaveResult {
 
 export interface StorageBackend {
   id: BackendId;
-  /** Full name, used in the options page dropdown. */
-  label: string;
-  /** One word, used for the popup badge. */
-  shortLabel: string;
   save(payload: SavePayload, settings: Settings): Promise<SaveResult>;
 }
+// How a destination is *named* is display text, and lives in
+// `src/ui/backendLabels.ts` with the rest of the strings.
 
 /** UTF-8 safe base64, usable from a service worker or event page. */
 export function toBase64(input: string): string {

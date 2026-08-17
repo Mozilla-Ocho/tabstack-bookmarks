@@ -90,8 +90,6 @@ async function freePath(cfg: GitHubSettings, path: string): Promise<string> {
 
 export const githubBackend: StorageBackend = {
   id: 'github',
-  label: 'GitHub repo',
-  shortLabel: 'GitHub',
 
   async save(payload: SavePayload, settings: Settings): Promise<SaveResult> {
     try {

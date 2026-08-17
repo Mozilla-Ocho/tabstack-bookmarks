@@ -5,7 +5,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import { i18n } from '#i18n';
-import { BACKENDS } from '@/src/lib/backends';
 import { parseTags, renderFilename } from '@/src/lib/markdown';
 import {
   isErrorReply,
@@ -14,6 +13,7 @@ import {
   type SaveUpdate,
 } from '@/src/lib/messages';
 import { isSaveableUrl } from '@/src/lib/save';
+import { backendShortLabel } from '@/src/ui/backendLabels';
 import { configErrors, getSettings, type Settings } from '@/src/lib/settings';
 
 interface TabInfo {
@@ -156,7 +156,7 @@ export function App() {
           <span className="brand-mark" aria-hidden="true" />
           <h1>{i18n.t('popup.title')}</h1>
         </div>
-        <span className="badge">{BACKENDS[settings.backend].shortLabel}</span>
+        <span className="badge">{backendShortLabel(settings.backend)}</span>
       </header>
 
       {problems.length > 0 && (

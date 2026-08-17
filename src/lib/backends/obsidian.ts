@@ -76,8 +76,6 @@ async function freePath(cfg: ObsidianSettings, path: string): Promise<string> {
 
 export const obsidianBackend: StorageBackend = {
   id: 'obsidian',
-  label: 'Obsidian vault (Local REST API)',
-  shortLabel: 'Obsidian',
 
   async save(payload: SavePayload, settings: Settings): Promise<SaveResult> {
     const cfg = settings.obsidian;

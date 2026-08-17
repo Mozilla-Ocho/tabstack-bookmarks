@@ -69,6 +69,15 @@ popup:
   save: Save
   resave: Re-save
 
+# Destination names. `label` is the options-page dropdown, `short` the popup badge.
+backend:
+  downloadLabel: Local folder (browser downloads)
+  downloadShort: Downloads
+  githubLabel: GitHub repo
+  githubShort: GitHub
+  obsidianLabel: Obsidian vault (Local REST API)
+  obsidianShort: Obsidian
+
 # The options page.
 options:
   help:
