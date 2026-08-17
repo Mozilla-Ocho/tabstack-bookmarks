@@ -25,15 +25,10 @@ import { isSaveableUrl, runSave } from '@/src/lib/save';
 import {
   deleteRecord,
   getRecordOrIndexed,
-  listRecords,
   putRecord,
   rememberSave,
 } from '@/src/lib/saveStore';
-import {
-  canonicaliseSavedKeys,
-  migrateFromRecent,
-  searchSaved,
-} from '@/src/lib/savedIndex';
+import { searchSaved } from '@/src/lib/savedIndex';
 
 const MENU_PAGE = 'tabstack-save-page';
 const MENU_LINK = 'tabstack-save-link';
@@ -72,12 +67,6 @@ export default defineBackground(() => {
   });
   // Event pages restart; menus are cheap to (re)create defensively.
   detached('create menus', createMenus());
-  // Profiles that saved things before the durable index existed. Gated by a
-  // stored flag, so this is one storage read per wakeup after the first.
-  detached('migrate saved index', listRecords().then(migrateFromRecent));
-  // Entries saved before URLs were canonicalised, re-keyed once per profile so a
-  // single lookup finds them.
-  detached('canonicalise saved index', canonicaliseSavedKeys());
 
   // Chrome's native onMessage ignores returned promises, so reply through
   // sendResponse and keep the channel open with `return true` instead.

@@ -47,8 +47,6 @@ export async function rememberSave(record: SaveRecord): Promise<void> {
 export async function deleteRecord(url: string): Promise<void> {
   const store = await read();
   delete store[canonicalUrl(url)];
-  // Entries written before URLs were canonicalised are keyed by the raw string.
-  delete store[url];
   await browser.storage.local.set({ [KEY]: store });
   await forgetSaved(url);
 }

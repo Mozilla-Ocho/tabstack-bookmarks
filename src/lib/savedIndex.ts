@@ -23,12 +23,10 @@ const PREFIX = 'saved:';
 export const MAX_ENTRIES = 50_000;
 
 /**
- * Counter and flag keys, deliberately outside `PREFIX` so `isEntryKey` and
- * `clearSaved` ignore them.
+ * The prune counter, deliberately outside `PREFIX` so `isEntryKey` and
+ * `clearSaved` ignore it.
  */
 const WRITES_KEY = 'savedIndexWrites';
-const MIGRATED_KEY = 'savedIndexMigrated';
-const CANONICAL_KEY = 'savedIndexCanonical';
 
 /**
  * Saves between prune sweeps. Pruning reads the entire storage area, so doing
@@ -76,24 +74,8 @@ export async function markSaved(record: SaveRecord): Promise<SavedEntry | undefi
 }
 
 export async function getSaved(url: string): Promise<SavedEntry | undefined> {
-  // A canonical key cannot find a legacy one — `saved:…/post` is not
-  // `saved:…/post?utm_source=old`, and no single-key read bridges that — so a
-  // lookup waits for the re-key rather than racing it. Once it has run this is a
-  // single flag read; the alternative was a full scan per lookup, which is the
-  // thing this index exists to avoid.
-  await canonicaliseSavedKeys();
-
-  const canonical = keyFor(url);
-  const stored = await browser.storage.local.get(canonical);
-  const hit = stored[canonical] as SavedEntry | undefined;
-  if (hit) return hit;
-
-  // Belt and braces: asked for the URL an entry was actually saved with, answer
-  // from that key even if the re-key has not touched it.
-  const raw = `${PREFIX}${url}`;
-  if (raw === canonical) return undefined;
-  const legacy = await browser.storage.local.get(raw);
-  return legacy[raw] as SavedEntry | undefined;
+  const key = keyFor(url);
+  return (await browser.storage.local.get(key))[key] as SavedEntry | undefined;
 }
 
 export async function isSaved(url: string): Promise<boolean> {
@@ -101,75 +83,20 @@ export async function isSaved(url: string): Promise<boolean> {
 }
 
 export async function forgetSaved(url: string): Promise<void> {
-  // Both spellings: an entry the migration has not reached yet is still keyed by
-  // the URL it was saved with, and "Forget" has to actually forget it.
-  await browser.storage.local.remove([keyFor(url), `${PREFIX}${url}`]);
-}
-
-async function readEntries(): Promise<[string, SavedEntry][]> {
-  const stored = await browser.storage.local.get(null);
-  return Object.entries(stored)
-    .filter(([key]) => isEntryKey(key))
-    .map(([key, value]) => [key, value as SavedEntry] as [string, SavedEntry])
-    .filter(([, entry]) => typeof entry?.url === 'string');
+  await browser.storage.local.remove(keyFor(url));
 }
 
 async function readAll(): Promise<SavedEntry[]> {
-  return (await readEntries()).map(([, entry]) => entry);
+  const stored = await browser.storage.local.get(null);
+  return Object.entries(stored)
+    .filter(([key]) => isEntryKey(key))
+    .map(([, value]) => value as SavedEntry)
+    .filter((entry) => typeof entry?.url === 'string');
 }
 
-/**
- * Re-keys entries saved before URLs were canonicalised. Once per profile, guarded
- * by a stored flag, so the usual cost is one single-key read.
- *
- * Bulk checks canonicalise as they read, so imports were always safe — but a
- * single lookup asks for one key, and `saved:…/post` does not find
- * `saved:…/post?utm_source=old`. Without this the popup calls a saved page unsaved
- * and auto-save pays to save it again, which is the bug canonical URLs were meant
- * to fix.
- *
- * Where one page exists under two keys — the same article shared through two
- * campaigns — the newer entry wins, because it points at the file most likely to
- * still be there.
- */
-export async function canonicaliseSavedKeys(): Promise<number> {
-  const stored = await browser.storage.local.get(CANONICAL_KEY);
-  if (stored[CANONICAL_KEY]) return 0;
-
-  const entries = await readEntries();
-  const stale = entries.filter(([key, entry]) => key !== keyFor(entry.url));
-
-  if (stale.length === 0) {
-    await browser.storage.local.set({ [CANONICAL_KEY]: true });
-    return 0;
-  }
-
-  const merged = new Map<string, SavedEntry>();
-  for (const [, entry] of entries) {
-    const key = keyFor(entry.url);
-    const winner = merged.get(key);
-    if (!winner || entry.savedAt > winner.savedAt) {
-      merged.set(key, { ...entry, url: canonicalUrl(entry.url) });
-    }
-  }
-
-  await browser.storage.local.remove(stale.map(([key]) => key));
-  await browser.storage.local.set({
-    ...Object.fromEntries(merged),
-    [CANONICAL_KEY]: true,
-  });
-  return stale.length;
-}
-
-/**
- * Every saved URL, for bulk checks like the import planner.
- *
- * Canonicalised on the way out as well as in: entries written before URLs were
- * canonicalised still have their tracking parameters, and they should still count
- * as saved rather than being fetched again.
- */
+/** Every saved URL, for bulk checks like the import planner. */
 export async function savedUrls(): Promise<Set<string>> {
-  return new Set((await readAll()).map((entry) => canonicalUrl(entry.url)));
+  return new Set((await readAll()).map((entry) => entry.url));
 }
 
 /** Newest first. */
@@ -255,27 +182,4 @@ export async function maybePruneSaved(
 
   await browser.storage.local.set({ [WRITES_KEY]: 0 });
   return pruneSaved(max);
-}
-
-/**
- * Seeds the index from the recent-saves list, for profiles that saved things
- * before the index existed.
- *
- * Runs at most once per profile, recorded by a flag rather than by "is the index
- * empty?". The background is an event page: it wakes for every save, and
- * `countSaved()` reads the whole storage area, so an empty-index check would pay
- * for a one-time migration on every wakeup forever. The flag also survives a
- * deliberate "clear saved index", which must not be undone by a re-migration.
- */
-export async function migrateFromRecent(recent: SaveRecord[]): Promise<number> {
-  const stored = await browser.storage.local.get(MIGRATED_KEY);
-  if (stored[MIGRATED_KEY]) return 0;
-
-  const empty = (await countSaved()) === 0;
-  await browser.storage.local.set({ [MIGRATED_KEY]: true });
-  if (!empty) return 0;
-
-  const done = recent.filter((record) => record.status === 'done' && record.path);
-  for (const record of done) await markSaved(record);
-  return done.length;
 }

@@ -65,12 +65,6 @@ The list of parameters is curated and conservative: `utm_*`, click ids, newslett
 not add `?id=`, `?v=`, `?page=`, `?q=` or `?si=` — stripping one of those saves a different
 page, which is worse than saving one twice.
 
-Two things exist only for entries written before this: `getSaved()` falls back to the raw key,
-and `canonicaliseSavedKeys()` re-keys them once per profile. `getSaved()` awaits that re-key
-rather than racing it, because a canonical key cannot find a legacy one — `saved:…/post` is
-not `saved:…/post?utm_source=old`, and the alternative is a full scan per lookup. Verified in a
-real browser: without the await, the first popup after an update called a saved page unsaved.
-
 **`savedIndex` is the library, not just a dedupe set.** `searchSaved()` backs the library
 page, so an entry is something a user can see, re-save and delete — `forgetSaved()` is a
 user-visible action now, not only internal bookkeeping.
@@ -111,9 +105,9 @@ so "give up after 50" has to mean give up.
 
 **Nothing that scans all of storage may run per save.** `storage.local.get(null)` costs the
 whole index — 50,000 entries at the cap. `rememberSave()` calls `maybePruneSaved()`, which
-sweeps once per `PRUNE_INTERVAL` saves off a single-key counter, and `migrateFromRecent()`
-is gated by a stored flag rather than by "is the index empty?" — the background wakes for
-every save, so an empty-index check pays for a one-time migration forever.
+sweeps once per `PRUNE_INTERVAL` saves off a single-key counter. `searchSaved()` scans, and is
+allowed to, because it answers one query for a page a person is looking at. Anything that would
+scan on a background wakeup does not belong there: the event page wakes for every save.
 
 **Documents carry exactly one frontmatter block.** `composeDocument()` strips whatever the
 extraction produced before prepending ours; the horizontal-rule case is tested.
@@ -222,16 +216,26 @@ message assertion in the suite meaningless.
 
 ## Storage keys
 
-| Key                   | Contents                                          |
-| --------------------- | ------------------------------------------------- |
-| `settings`            | The one settings object                           |
-| `recentSaves`         | Last 30 `SaveRecord`s, for the UI only            |
-| `saved:<url>`         | Durable index entry, one key per URL, O(1) writes |
-| `savedIndexWrites`    | Saves since the last prune sweep                  |
-| `savedIndexMigrated`  | Set once the pre-index migration has run          |
-| `savedIndexCanonical` | Set once legacy keys have been re-keyed           |
-| `importJob`           | The running/most recent import job                |
-| `retrySaves`          | Saves waiting for another attempt                 |
+| Key                | Contents                                          |
+| ------------------ | ------------------------------------------------- |
+| `settings`         | The one settings object                           |
+| `recentSaves`      | Last 30 `SaveRecord`s, for the UI only            |
+| `saved:<url>`      | Durable index entry, one key per URL, O(1) writes |
+| `savedIndexWrites` | Saves since the last prune sweep                  |
+| `importJob`        | The running/most recent import job                |
+| `retrySaves`       | Saves waiting for another attempt                 |
+
+Nothing has shipped, so there is no stored data worth migrating: wipe it rather than writing a
+migration for a shape that only ever existed on your own machine.
+
+```bash
+node scripts/chrome-drive.mjs options.html \
+  --eval="await chrome.storage.local.clear(); await chrome.storage.sync.clear(); return 'wiped'"
+```
+
+Firefox: the same through `scripts/firefox-drive.mjs`, with `browser.storage` — or just delete
+the throwaway profile. Once this is published that stops being true, and a reshaping change
+needs `SCHEMA_VERSION` and `migrate()` in `settings.ts`.
 
 The library page reads the index through the `searchSaved` message rather than touching
 storage directly: only the background should be scanning 50,000 keys, and only once per
