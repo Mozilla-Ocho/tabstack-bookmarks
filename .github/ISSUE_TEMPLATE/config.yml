@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Report a problem or request a feature
+  - name: Tabstack API, SDK, or docs problem or idea
     url: https://github.com/Mozilla-Ocho/tabstack-feedback/issues/new/choose
     about: Tabstack API, SDK, and docs problems and ideas. For bugs in the extension itself, use the templates above.

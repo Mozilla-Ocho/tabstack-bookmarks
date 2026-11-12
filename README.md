@@ -411,9 +411,10 @@ tokens you paste are stored, and the boundaries the code keeps. The extension is
 
 ## Feedback
 
-Report a problem or request a feature in
-[tabstack-feedback](https://github.com/Mozilla-Ocho/tabstack-feedback/issues/new/choose).
-Include the extension version, your browser, and the error message the extension showed. Never
+For a bug or feature request in the extension itself, open an issue in this repo with the bug
+report or feature request template. Include the extension version, your browser, and the error
+message the extension showed. Report Tabstack API, SDK, and docs problems in
+[tabstack-feedback](https://github.com/Mozilla-Ocho/tabstack-feedback/issues/new/choose). Never
 paste your Tabstack API key, GitHub token, Obsidian key, or other personal data into an issue.
 
 ## Roadmap
