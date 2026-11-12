@@ -413,8 +413,8 @@ tokens you paste are stored, and the boundaries the code keeps. The extension is
 
 Report a problem or request a feature in
 [tabstack-feedback](https://github.com/Mozilla-Ocho/tabstack-feedback/issues/new/choose).
-Include the extension version, your browser, and the `x-trace-id` from the failing response
-when relevant. Never paste API keys or personal data into an issue.
+Include the extension version, your browser, and the error message the extension showed. Never
+paste your Tabstack API key, GitHub token, Obsidian key, or other personal data into an issue.
 
 ## Roadmap
 
