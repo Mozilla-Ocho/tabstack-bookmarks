@@ -409,6 +409,13 @@ stored on it. [SECURITY.md](SECURITY.md) covers how to report a vulnerability, h
 tokens you paste are stored, and the boundaries the code keeps. The extension is
 [MPL-2.0](LICENSE) licensed.
 
+## Feedback
+
+Report a problem or request a feature in
+[tabstack-feedback](https://github.com/Mozilla-Ocho/tabstack-feedback/issues/new/choose).
+Include the extension version, your browser, and the `x-trace-id` from the failing response
+when relevant. Never paste API keys or personal data into an issue.
+
 ## Roadmap
 
 - Notice when a saved page has changed, instead of leaving you to re-save on a hunch.
